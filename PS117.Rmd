@@ -1,4 +1,4 @@
-Load necessary packages another quick test
+Load necessary packages
 ```{r}
 library(cowplot)
 library(data.table)
@@ -717,7 +717,7 @@ fig2_FC_nmds <- ggplot(data.scores, aes(x = NMDS1,
       plot.title = element_text(vjust = -8, hjust = 0.02))
 ```
 
-pigment nmds and legend and a quick test here
+pigment nmds and legend
 ```{r}
 pigment_nmds <- alldata [c(14,41:46)] %>% na.omit() %>% separate(full_treatment_name, c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate")) 
 
