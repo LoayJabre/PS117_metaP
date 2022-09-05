@@ -1,0 +1,448 @@
+This script performs differential expression analysis on the PS117 protein data. 
+It first speratates bioassay1 and bioassay 2, does DE analysis and reports fold change. 
+The DE analysis includes: 
+Iron effect, temperature effect, iron x temperature effect, and a pairwise comparison of the different treatments.  
+```{r}
+#https://www.bioconductor.org/packages/release/bioc/html/DEqMS.html
+
+#https://academic.oup.com/bib/advance-article/doi/10.1093/bib/bbac138/6566001?login=true
+
+#limma package should be better than edgeR
+
+#https://seqqc.wordpress.com/2020/11/28/10-tips-tricks-for-complex-model-matrix-designs-in-dge-analysis/
+```
+
+Load necessary packages
+```{r}
+library(dplyr)
+library(plyr)
+library(ggplot2)
+library(statmod)
+library(tidyverse)
+library(edgeR)
+library(reshape2)
+library(missForest)
+library(plotly)
+
+#https://www.nature.com/articles/s41598-021-81279-4#:~:text=Missing%20values%20in%20proteomic%20data%20are%20a%20mixture%20of%20MAR,missing%20values%20with%20estimated%20values.
+
+#https://academic.oup.com/bioinformatics/article/28/1/112/219101?login=true  MissForest—non-parametric missing value imputation for mixed-type data
+
+setwd("D:/School/PhD/PS117/data/")
+```
+
+
+DE clusters 
+there are several ways of dealing with missing data
+1) remove any proteins that have any missin values in any treatments 
+2) replace missing values with 0.5*minimum value in that row 
+3) use random forest method. 
+```{r}
+prot_data <- read.csv("all_ps117_taxon_function_non-normalized_injection_means_20220421.csv", header = T)
+
+clusters <- prot_data [c(12, 3, 24:53)]
+
+clusters2 <- melt(clusters, id.vars=c("cluster", "F")) %>%
+            rename(treatment = variable) %>%
+            rename(unnorm_abundance = value )
+
+clusters2_aggregated <- aggregate(clusters2$unnorm_abundance, by=list(Category=clusters2$cluster, clusters2$treatment, clusters2$F), FUN=sum) %>%
+                  rename(unnorm_abundance = x) %>%
+                  rename(treatment = Group.2) %>%
+                  rename(cluster = Category) %>%
+                  rename(taxon = Group.3)
+
+clusters3 <- dcast(clusters2_aggregated, taxon+cluster~treatment)
+
+clusters3$clustertaxon <- paste(clusters3$cluster, clusters3$taxon, sep = ';')
+           # rename(treatment = variable) %>%
+            #rename(norm_abundance = value )
+
+DE_data <- clusters3 [c(33, 7:17)] # BA1 
+
+DE_data <- clusters3 [c(33, 21:32)] # BA2
+
+
+#here, we impute values in the columns. 
+#one way is to add 0.5 * lowest row value, or Random Forest method. I'll stick with 0.5 lowest value for now. 
+#also, only if ~half or less of the row has missing values. 
+
+DE_data [DE_data == 0] <- NA  
+DE_data$count_na <- rowSums(is.na(DE_data))
+
+DE_data <- filter (DE_data, grepl ("^0$|^1$|^2$|^3$|^4$|^5$", count_na))
+
+#DE_data = na.omit #this is if we want to keep only the rows without any missing values 
+
+
+rownames(DE_data) <- DE_data[,1]
+DE_data <- DE_data[c(2:12)]
+
+
+DE_data[is.na(DE_data)] <- 0  #repalce NA in row with 0.5*minimum value
+
+DE_data[] <- t(apply(DE_data, 1, function(x) 
+                          replace(x, x ==0, 0.5*min(x[x > 0], na.rm = TRUE)))) #repalce NA in row with 0.5*minimum value
+
+#imputed <- missForest(DE_data) #using random forest model 
+
+#DE_data <- data.frame (imputed$ximp)
+
+DE_data$clustertaxon <- row.names(DE_data)
+
+prot_counts <- DE_data[c(1:11)]
+
+# Make vector with treatment groups
+#BA1
+DE_data_groups <- factor(c('BA1_T8_HT_Fe', 'BA1_T8_HT_Fe','BA1_T8_HT_Fe',
+                           'BA1_T8_HT_noFe', 'BA1_T8_HT_noFe', 'BA1_T8_HT_noFe',
+                           'BA1_T8_LT_Fe', 'BA1_T8_LT_Fe','BA1_T8_LT_Fe',
+                           'BA1_T8_LT_noFe', 'BA1_T8_LT_noFe'))
+
+#BA2
+# DE_data_groups <- factor(c('BA2_T8_HT_Fe', 'BA2_T8_HT_Fe','BA2_T8_HT_Fe', 
+#                            'BA2_T8_HT_noFe', 'BA2_T8_HT_noFe', 'BA2_T8_HT_noFe', 
+#                            'BA2_T8_LT_Fe', 'BA2_T8_LT_Fe','BA2_T8_LT_Fe', 
+#                            'BA2_T8_LT_noFe','BA2_T8_LT_noFe', 'BA2_T8_LT_noFe'))
+```
+
+```{r}
+# Create DGEList object with protein counts, groups, and accession
+DGE_list<- DGEList(counts = prot_counts, 
+                        group = DE_data_groups,
+                        genes = DE_data$clustertaxon, #or peptide depdning on what DE I'm doing
+                        remove.zeros = TRUE)
+
+# Create design matrix 
+design.mat<- model.matrix(~ 0 + DE_data_groups)
+
+# Get tagwise dispersion of tags
+#DGE_disp<- estimateDisp(DGE_list_L, design.mat_L, robust = TRUE)
+
+DGE_disp<- estimateDisp(DGE_list, design.mat)
+
+# Fit to GLM
+#fit<- glmQLFit(DGE_disp_L, design.mat_L, robust = FALSE)
+fit<- glmFit(DGE_disp, design.mat)
+```
+
+BA1
+```{r}
+# Fe vs noFe
+contrast_Fe <- makeContrasts(((DE_data_groupsBA1_T8_HT_Fe + DE_data_groupsBA1_T8_LT_Fe - DE_data_groupsBA1_T8_HT_noFe - DE_data_groupsBA1_T8_LT_noFe)/2), levels = design.mat)
+
+#HT vs lowTemp
+contrast_temp <- makeContrasts(((DE_data_groupsBA1_T8_HT_Fe - DE_data_groupsBA1_T8_LT_Fe + DE_data_groupsBA1_T8_HT_noFe - DE_data_groupsBA1_T8_LT_noFe)/2), levels = design.mat)
+
+#iron temp interaction
+contrast_Fetemp_interaction = makeContrasts((DE_data_groupsBA1_T8_HT_Fe - DE_data_groupsBA1_T8_HT_noFe ) - (DE_data_groupsBA1_T8_LT_Fe - DE_data_groupsBA1_T8_LT_noFe), levels = design.mat)
+  
+# LT_noFe vs HT_noFe
+contrast_noFe_HT_LT <- makeContrasts( DE_data_groupsBA1_T8_HT_noFe - DE_data_groupsBA1_T8_LT_noFe, levels = design.mat)
+
+# iron vs no iron LT 
+contrast_Fe_LT <- makeContrasts( DE_data_groupsBA1_T8_LT_Fe - DE_data_groupsBA1_T8_LT_noFe, levels = design.mat)
+
+# Fit tests
+qlf_Fe <- glmLRT (fit, contrast = contrast_Fe)
+qlf_temp <- glmLRT (fit, contrast = contrast_temp)
+qlf_Fetemp_interaction <- glmLRT (fit, contrast = contrast_Fetemp_interaction)
+qlf_noFe_HT_LT <- glmLRT (fit, contrast = contrast_noFe_HT_LT)
+qlf_Fe_LT <- glmLRT (fit, contrast = contrast_Fe_LT)
+
+# Export list of DE proteins per comparison
+hits_Fe  <- topTags(qlf_Fe, n = Inf, adjust.method = 'BH', sort.by = 'none')
+hits_temp <- topTags(qlf_temp, n = Inf, adjust.method = 'BH', sort.by = 'none')
+hits_Fetemp_interaction <- topTags(qlf_Fetemp_interaction, n = Inf, adjust.method = 'BH', sort.by = 'none')
+hits_noFe_HT_LT <- topTags(qlf_noFe_HT_LT, n = Inf, adjust.method = 'BH', sort.by = 'none')
+hits_Fe_LT <- topTags(qlf_Fe_LT, n = Inf, adjust.method = 'BH', sort.by = 'none')
+
+# Extract dataframes
+hits_Fe <- hits_Fe[[1]][,]
+hits_temp <- hits_temp[[1]][,]
+hits_Fetemp_interaction <- hits_Fetemp_interaction[[1]][,]
+hits_noFe_HT_LT <- hits_noFe_HT_LT[[1]][,]
+hits_Fe_LT <- hits_Fe_LT[[1]][,]
+```
+
+BA2
+```{r}
+# Make pairwise comparisons
+
+# Fe vs noFe
+contrast_Fe <- makeContrasts(((DE_data_groupsBA2_T8_HT_Fe + DE_data_groupsBA2_T8_LT_Fe - DE_data_groupsBA2_T8_HT_noFe - DE_data_groupsBA2_T8_LT_noFe)/2), levels = design.mat)
+
+#HT vs lowTemp
+contrast_temp <- makeContrasts(((DE_data_groupsBA2_T8_HT_Fe - DE_data_groupsBA2_T8_LT_Fe + DE_data_groupsBA2_T8_HT_noFe - DE_data_groupsBA2_T8_LT_noFe)/2), levels = design.mat)
+
+#iron temp interaction
+contrast_Fetemp_interaction = makeContrasts((DE_data_groupsBA2_T8_HT_Fe - DE_data_groupsBA2_T8_HT_noFe ) - (DE_data_groupsBA2_T8_LT_Fe - DE_data_groupsBA2_T8_LT_noFe), levels = design.mat)
+  
+# LT_noFe vs HT_noFe
+contrast_noFe_HT_LT <- makeContrasts( DE_data_groupsBA2_T8_HT_noFe - DE_data_groupsBA2_T8_LT_noFe, levels = design.mat)
+
+# iron vs no iron LT 
+contrast_Fe_LT <- makeContrasts( DE_data_groupsBA2_T8_LT_Fe - DE_data_groupsBA2_T8_LT_noFe, levels = design.mat)
+
+# Fit tests
+qlf_Fe <- glmLRT (fit, contrast = contrast_Fe)
+qlf_temp <- glmLRT (fit, contrast = contrast_temp)
+qlf_Fetemp_interaction <- glmLRT (fit, contrast = contrast_Fetemp_interaction)
+qlf_noFe_HT_LT <- glmLRT (fit, contrast = contrast_noFe_HT_LT)
+qlf_Fe_LT <- glmLRT (fit, contrast = contrast_Fe_LT)
+
+# Export list of DE proteins per comparison
+hits_Fe  <- topTags(qlf_Fe, n = Inf, adjust.method = 'BH', sort.by = 'none')
+hits_temp <- topTags(qlf_temp, n = Inf, adjust.method = 'BH', sort.by = 'none')
+hits_Fetemp_interaction <- topTags(qlf_Fetemp_interaction, n = Inf, adjust.method = 'BH', sort.by = 'none')
+hits_noFe_HT_LT <- topTags(qlf_noFe_HT_LT, n = Inf, adjust.method = 'BH', sort.by = 'none')
+hits_Fe_LT <- topTags(qlf_Fe_LT, n = Inf, adjust.method = 'BH', sort.by = 'none')
+
+# Extract dataframes
+hits_Fe <- hits_Fe[[1]][,]
+hits_temp <- hits_temp[[1]][,]
+hits_Fetemp_interaction <- hits_Fetemp_interaction[[1]][,]
+hits_noFe_HT_LT <- hits_noFe_HT_LT[[1]][,]
+hits_Fe_LT <- hits_Fe_LT[[1]][,]
+```
+
+combine all DE analyses into one dataframe
+```{r}
+colnames(hits_Fe)[2:6] <- paste("Fe", colnames(hits_Fe[,c(2:6)]), sep = "_")
+colnames(hits_temp)[2:6] <- paste("temp", colnames(hits_temp[,c(2:6)]), sep = "_")
+colnames(hits_Fetemp_interaction)[2:6] <- paste("Fetempinteraction", colnames(hits_Fetemp_interaction[,c(2:6)]), sep = "_")
+colnames(hits_noFe_HT_LT)[2:6] <- paste("noFe_HT_LT", colnames(hits_noFe_HT_LT[,c(2:6)]), sep = "_")
+colnames(hits_Fe_LT)[2:6] <- paste("Fe_LT", colnames(hits_Fe_LT[,c(2:6)]), sep = "_")
+
+
+combined_DE <- join_all  (list(hits_Fe, hits_temp, hits_Fetemp_interaction, hits_noFe_HT_LT, hits_Fe_LT), by = "genes", type = "full")
+
+
+combined_DE2 <- combined_DE[c(1,2,6,7,11,12,16,17,21,22,26)]
+
+write.csv(combined_DE2, "ps117_BA1_DE_20220824.csv", row.names = FALSE) #this new version should have all the taxonomies corrected. 
+```
+
+
+
+```{r}
+jointdataset <- merge(hits_Fe_halflowest, hits_Fe_Rforest, by = "genes")
+
+x <- ggplot (hits_Fetemp_interaction, aes (x = logFC, 
+                              y = -log10(FDR)))+
+  geom_point(size = 2.5, alpha = 0.2)+
+  geom_hline (yintercept = 1.301, col = "blue", lty = 2, lwd=0.8 )+
+    geom_vline (xintercept = c(-1,1), col = "blue", lty = 2, lwd=0.8 )+
+  ggtitle("Fe effect")+
+  
+  xlab("Log2 FC")+
+ylab("-log10 FDR")+ 
+    theme_bw()+
+    theme(axis.title.x = element_text (color= "black", face = "bold", size = 16), 
+          axis.title.y = element_text (color= "black", face = "bold", size = 16), 
+          legend.position = "none"
+          )
+  
+
+ggplotly(x)
+
+  
+
+ggplot (jointdataset, aes (x = logFC.x, 
+                              y = logFC.y, 
+                           color = FDR.x < 0.05, 
+                           shape = FDR.y < 0.05 ))+
+  geom_point(alpha = 0.3, size =3)+
+  geom_abline(slope = 1, color = "red", size= 0.5)+
+scale_colour_manual(name = 'Half lowest significance', values = setNames(c('blue','black'),c(T, F)))+
+scale_shape_manual(name = 'RF significance', values = setNames(c(8,19),c(T, F)))+
+  ggtitle("LogFC comparison")+
+  
+  xlab("Half Lowest")+
+ylab("Random Forest")+ 
+    theme_bw()+
+    theme(axis.title.x = element_text (color= "black", face = "bold", size = 16), 
+          axis.title.y = element_text (color= "black", face = "bold", size = 16), 
+          legend.position = "none"
+          )
+
+ggplot (jointdataset, aes (x = FDR.x, 
+                              y = FDR.y  ) )+
+  geom_point(alpha = 0.3, size =3)+
+  geom_abline(slope = 1, color = "red", size= 0.5)+
+#scale_colour_manual(name = 'Half lowest significance', values = setNames(c('blue','black'),c(T, F)))+
+#scale_shape_manual(name = 'RF significance', values = setNames(c(8,19),c(T, F)))+
+  ggtitle("LogFC comparison")+
+  
+  xlab("Half Lowest")+
+ylab("Random Forest")+ 
+    theme_bw()+
+    theme(axis.title.x = element_text (color= "black", face = "bold", size = 16), 
+          axis.title.y = element_text (color= "black", face = "bold", size = 16), 
+          legend.position = "none"
+          )
+  
+
+
+
+```
+
+
+#number of missing values
+```{r}
+
+BA2 <- data.frame(table (DE_data$count_na)) #count occurances of certain values 
+
+colnames(BA1)[2] <- paste("BA1", colnames(BA1[,c(2)]), sep = "_")
+
+colnames(BA2)[2] <- paste("BA2", colnames(BA1[,c(2)]), sep = "_")
+
+missing <- merge(BA1, BA2, by = "Var1",  all = T)
+
+ggplot (missing, aes(x = Var1,
+                     y = BA2_))+
+  geom_col()+
+  xlab (expression ("Number of samples where protein is missing")) +
+  ylab (expression ("BA2 - Number of proteins ")) +
+
+  theme_bw()+
+  theme(axis.text.x=element_text(face = "bold", size = 15, color = "black"),
+        axis.title.y=element_text(size=15, color = "black"), 
+                axis.title.x=element_text(size=15, color = "black"), 
+
+        axis.text.y=element_text(face = "bold", size = 15, color = "black"),
+        strip.background =element_rect(fill = "white"),
+        strip.text.x = element_text(size = 15, face = "bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 14))
+
+```
+
+
+```{r}
+
+meta_pcyn <- filter(norm_proteomicsdata, grepl("^clust_123$", cluster)) 
+
+meta_pcyn <- meta_pcyn [c(3, 24:53)]
+
+meta_pcyn <- melt(meta_pcyn, id.vars=c("cluster")) %>%
+            rename(treatment = variable) %>%
+            rename(norm_abundance = value )
+
+meta_pcyn_aggregated <- aggregate(meta_pcyn$norm_abundance, by=list(Category=meta_pcyn$cluster, meta_pcyn$treatment), FUN=sum) %>%
+                  rename(norm_abundance = x) %>%
+                  rename(treatment = Group.2) %>%
+                  rename(cluster = Category) %>% 
+                  separate(treatment, into=c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"), sep = "_")
+
+
+meta_pcyn_aggregated$fulltreatment <- paste (meta_pcyn_aggregated$temperature, meta_pcyn_aggregated$iron , sep ='_')
+meta_pcyn_aggregated$fulltreatment <- ifelse (meta_pcyn_aggregated$fulltreatment ==  "LT_noFe", "LT_noFe", 
+                            ifelse (meta_pcyn_aggregated$fulltreatment ==  "LT_Fe", "LT_Fe",
+                            ifelse (meta_pcyn_aggregated$fulltreatment ==  "HT_noFe", "HT_noFe", 
+                            ifelse (meta_pcyn_aggregated$fulltreatment ==  "HT_Fe", "HT_Fe",
+                            "T0"))))
+
+
+ggplot(meta_pcyn_aggregated, 
+             aes(x = factor(fulltreatment, level = treatment_orders),
+               #x = factor(iron_treatment, level = irontreatment_order), 
+                y=norm_abundance, 
+                color = temperature_treatment)) + 
+  facet_wrap(~bioassay)+
+  geom_point()+
+  stat_summary(fun = mean, geom = "point", size = 6, stroke = 1, alpha = 0.5)+
+  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F,  size = 1.3, width = 0.1) +
+  ylab (expression ("PCYN Metaproteome mass fraction" )) + 
+  scale_color_manual(name="Temperature",
+                     breaks = c("LT","HT"),
+                     values = c( 'black','darkorange2', "black")) +
+  xlab (expression ("")) +
+  theme_bw()+
+  theme(axis.text.x=element_text(face = "bold", size = 15, color = "black"),
+        axis.title.y=element_text(size=20, color = "black"), 
+        axis.text.y=element_text(face = "bold", size = 15, color = "black"),
+        strip.background =element_rect(fill = "white"),
+        strip.text.x = element_text(size = 15, face = "bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 14))
+
+
+#Then I want to show taxon-normalized protein abundance. So for example, Pnitzchia PCYN normalized to total Pnitzchia protein. This is different from total PCYN in the metaproteome that is allocated to PN
+
+#First, I  normalize everything to the taxonomic group of interest  
+
+pcyntaxon_diatom <- filter (norm_proteomicsdata, grepl("Bacill", class))
+
+pcyntaxon_diatom <- pcyntaxon_diatom [c(12, 3, 24:53)]
+
+pcyntaxon_diatom2 <- pcyntaxon_diatom %>% mutate_at (3:32, funs (((. / sum(.)))))
+
+pcyn_diatom <- filter(pcyntaxon_diatom2, grepl("^clust_1784$", cluster)) 
+pcyn_diatom <- melt(pcyn_diatom, id.vars=c("cluster", "F")) %>%
+            rename(treatment = variable) %>%
+            rename(norm_abundance = value )
+
+pcyn_diatom_aggregated <- aggregate(pcyn_diatom$norm_abundance, by=list(Category=pcyn_diatom$cluster, pcyn_diatom$treatment, pcyn_diatom$F), FUN=sum) %>%
+                  rename(norm_abundance = x) %>%
+                  rename(treatment = Group.2) %>%
+                  rename(cluster = Category) %>% 
+   rename(taxon = Group.3) %>% 
+                    separate(treatment, into=c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"), sep = "_")
+
+pcyn_diatom_aggregated$fulltreatment <- paste (pcyn_diatom_aggregated$temperature, pcyn_diatom_aggregated$iron , sep ='_')
+pcyn_diatom_aggregated$fulltreatment <- ifelse (pcyn_diatom_aggregated$fulltreatment ==  "LT_noFe", "LT_noFe", 
+                            ifelse (pcyn_diatom_aggregated$fulltreatment ==  "LT_Fe", "LT_Fe",
+                            ifelse (pcyn_diatom_aggregated$fulltreatment ==  "HT_noFe", "HT_noFe", 
+                            ifelse (pcyn_diatom_aggregated$fulltreatment ==  "HT_Fe", "HT_Fe",
+                            "T0"))))
+
+ggplot(filter(pcyn_diatom_aggregated, grepl("Polar",taxon)), 
+             aes(x = factor(fulltreatment, level = treatment_orders), 
+                y=norm_abundance, 
+                color = temperature_treatment)) + 
+  facet_wrap(~bioassay)+
+  geom_point(size=4, alpha = 0.5)+
+  #stat_summary(fun = mean, geom = "point", size = 6, stroke = 1, alpha = 0.5)+
+  #stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F,  size = 1.3, width = 0.1) +
+  ylab (expression ("Fraction contribution to total diatom proteins" )) + 
+  scale_color_manual(name="Temperature",
+                     breaks = c("LT","HT"),
+                     values = c( 'black','darkorange2', "black")) +
+  xlab (expression ("")) +
+  theme_bw()+
+  theme(axis.text.x=element_text(face = "bold", size = 15, color = "black"),
+        axis.title.y=element_text(size=20, color = "black"), 
+        axis.text.y=element_text(face = "bold", size = 15, color = "black"),
+        strip.background =element_rect(fill = "white"),
+        strip.text.x = element_text(size = 15, face = "bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 14))
+```
+
+
+
+
+DE peptides.. maybe later 
+```{r}
+prot_data_L <- read.csv("all_ps117_taxon_function_non-normalized_injection_means_20220421.csv", header = T)
+
+#prot_data_L [prot_data_L == 0] <- NA
+
+
+#norm_prot_data_L <- prot_data_L %>% mutate_at (24:53, funs ((. / sum(.)))) #this normalizes the data to total peptide abundance
+
+DE_data_L <- prot_data_L [c(1, 28:38)]
+
+DE_data_L = na.omit(DE_data_L)
+
+prot_counts_L <- DE_data_L[,2:length(DE_data_L)]
+
+# Make vector with treatment groups
+DE_data_groups_L <- factor(c('BA1_T8_HT_Fe', 'BA1_T8_HT_Fe','BA1_T8_HT_Fe', 
+                           'BA1_T8_HT_noFe', 'BA1_T8_HT_noFe', 'BA1_T8_HT_noFe', 
+                           'BA1_T8_LT_Fe', 'BA1_T8_LT_Fe','BA1_T8_LT_Fe', 
+                           'BA1_T8_LT_noFe', 'BA1_T8_LT_noFe'))
+
+#groups <- paste('fe', samples_present$fe, 'temp', samples_present$temp, sep = '_')
+```
