@@ -1,7 +1,10 @@
 This script performs differential expression analysis on the PS117 protein data. 
 It first speratates bioassay1 and bioassay 2, does DE analysis and reports fold change. 
 The DE analysis includes: 
-Iron effect, temperature effect, iron x temperature effect, and a pairwise comparison of the different treatments.  
+Iron effect, temperature effect, iron x temperature effect, and a pairwise comparison of the different treatments.
+
+
+
 ```{r}
 #https://www.bioconductor.org/packages/release/bioc/html/DEqMS.html
 
