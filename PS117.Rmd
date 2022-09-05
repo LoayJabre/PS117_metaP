@@ -1,4 +1,4 @@
-Load necessary packages and see if github is working
+Load necessary packages 
 ```{r}
 library(cowplot)
 library(data.table)
