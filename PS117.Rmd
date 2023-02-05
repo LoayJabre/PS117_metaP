@@ -183,7 +183,6 @@ clusters4_aggregated$clust_annotation <-   ifelse (clusters4_aggregated$cluster 
                             ifelse (clusters4_aggregated$cluster ==  "clust_332", "Chl A-B binding protein", 
                             ifelse (clusters4_aggregated$cluster ==  "clust_417", "AMT", 
                             ifelse (clusters4_aggregated$cluster ==  "clust_2501", "Fe-Mn SOD", 
-                            ifelse (clusters4_aggregated$cluster ==  "clust_6573", "Cd Carbonic Anhydrase", 
                             ifelse (clusters4_aggregated$cluster ==  "clust_1525", "SLC-4",
                             ifelse (clusters4_aggregated$cluster ==  "clust_231", "Rhodopsin",
                             ifelse (clusters4_aggregated$cluster ==  "clust_1906", "Mn-cluster",
@@ -193,13 +192,15 @@ clusters4_aggregated$clust_annotation <-   ifelse (clusters4_aggregated$cluster 
                             ifelse (clusters4_aggregated$cluster ==  "clust_1372", "Urea transporter",
                             ifelse (clusters4_aggregated$cluster ==  "clust_320", "Urea carboxylase",
                             ifelse (clusters4_aggregated$cluster ==  "clust_6019", "Ornithine cyclodeaminase",    
-                            ifelse (clusters4_aggregated$cluster ==  "clust_655", "CA",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_655", "CA_clust_655",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_6573", "CA_clust_6573",
                             ifelse (clusters4_aggregated$cluster ==  "clust_35", "Ribosome recycling",
                             ifelse (clusters4_aggregated$cluster ==  "clust_2490", "Rubisco",
                             ifelse (clusters4_aggregated$cluster ==  "clust_2244", "PEPC",
                             ifelse (clusters4_aggregated$cluster ==  "clust_1830", "Acireductone dioxygenase Fe containing",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_15664", "Cation Efflux protein",
                                     clusters4_aggregated$cluster 
-                    ))))))))))))))))))))))))))))))
+                    )))))))))))))))))))))))))))))))
 
 
 clusters4_aggregated$zscore_BAnew <- ifelse (clusters4_aggregated$norm_abundance ==  "0", NA, 
@@ -218,35 +219,37 @@ proteinclusterorder <- c("Plastocyanin",
                          "Urea transporter",
                          "Urea Carboxylase")
 
-ggplot((filter(clusters4_aggregated, grepl(clusternames, clust_annotation))), aes(x = factor(fulltreatment, level = treatment_orders),
+ggplot((filter(clusters4_aggregated, grepl(clusternames, clust_annotation))), aes(x = factor(iron_treatment, level = Fe_order),
   y = zscore_BAnew, 
-  shape   = clust_annotation))+ 
-  #color = temperature_treatment))+ 
-  stat_summary(fun = mean, geom = "point", size = 4, stroke = 1, alpha = 0.5, position= position_dodge(width=0.3))+
-  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F,  size = 1.3, width = 0.1, position= position_dodge(width=0.3))+
+  #shape   = clust_annotation, 
+  shape = iron_treatment,
+  color = temperature_treatment))+ 
+  stat_summary(fun = mean, geom = "point", size = 4, stroke = 1.5, alpha = 0.65, position= position_dodge(width=0.3))+
+  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F,  size = 1, width = 0.1, position= position_dodge(width=0.3))+
   theme_bw() +
-  #scale_color_manual(name="",  Plastocyanin
+  scale_color_manual(name="",  
 
-                     #breaks = c("LT","HT"),
-                     #values = c( 'black','darkorange2', "black")) +
-    scale_shape_manual(name="",
-                     #values = c("Plastocyanin" = 1,
-                               # "Haptophytes" = 16,
-                                #"Dynophytes" = 4))+
+                     breaks = c("LT","HT"),
+                     values = c( 'black','darkorange2', "black")) +
+   scale_shape_manual(name = "",
+                       breaks = c("Fe","noFe", "T0"), #this removes the T0 from the legend
+                       labels = c("Fe", "noFe", "T0"),
+                       values = c(19,1,5)) +
   
-       breaks = protein,
-                    values =shape) +
+      # breaks = protein,
+                    #values =shape) +
 
   #scale_shape_discrete(name = "")+
     facet_wrap(~bioassay)+
  labs (x = "", y = "Z-Score")+# title = {{plot_title}})+
-    theme(axis.text.x=element_text(face = "bold", size = 8, color = "black"),
-        axis.title.y=element_text(face = "bold", size=13, color = "black"), 
-        axis.text.y=element_text(size = 11, color = "black"),
+    theme(axis.text.x=element_text(face = "bold", size = 10, color = "black"),
+        axis.title.y=element_text(face = "bold", size=12, color = "black"), 
+        axis.text.y=element_text(size = 10, color = "black"),
         strip.background =element_rect(fill = "white"),
-        strip.text.x = element_text(size = 10, face = "bold"),
+        strip.text.x = element_text(size = 11, face = "bold"),
         legend.text = element_text(size = 9, face = "bold"),
         legend.margin = margin(0,0,0,0, "cm"),
+        title = element_text(size = 8, face = "bold"),
         legend.position = "top", legend.justification='left') + 
   guides(shape = guide_legend(override.aes = list(size=4)))
         #plot.margin = margin(0.3, 0, 0, -0.5, "cm")) #trbl
@@ -290,7 +293,6 @@ clusters4_aggregated$clust_annotation <-   ifelse (clusters4_aggregated$cluster 
                             ifelse (clusters4_aggregated$cluster ==  "clust_332", "Chl A-B binding protein", 
                             ifelse (clusters4_aggregated$cluster ==  "clust_417", "AMT", 
                             ifelse (clusters4_aggregated$cluster ==  "clust_2501", "Fe-Mn SOD", 
-                            ifelse (clusters4_aggregated$cluster ==  "clust_6573", "Cd Carbonic Anhydrase", 
                             ifelse (clusters4_aggregated$cluster ==  "clust_1525", "SLC-4",
                             ifelse (clusters4_aggregated$cluster ==  "clust_231", "Rhodopsin",
                             ifelse (clusters4_aggregated$cluster ==  "clust_1906", "Mn-cluster",
@@ -300,7 +302,8 @@ clusters4_aggregated$clust_annotation <-   ifelse (clusters4_aggregated$cluster 
                             ifelse (clusters4_aggregated$cluster ==  "clust_1372", "Urea transporter",
                             ifelse (clusters4_aggregated$cluster ==  "clust_320", "Urea carboxylase",
                             ifelse (clusters4_aggregated$cluster ==  "clust_6019", "Ornithine cyclodeaminase",    
-                            ifelse (clusters4_aggregated$cluster ==  "clust_655", "CA",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_655", "CA_clust_655",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_6573", "CA_clust_6573", 
                             ifelse (clusters4_aggregated$cluster ==  "clust_35", "Ribosome recycling",
                             ifelse (clusters4_aggregated$cluster ==  "clust_2490", "Rubisco",
                             ifelse (clusters4_aggregated$cluster ==  "clust_2244", "PEPC",
@@ -423,7 +426,6 @@ clusters4_aggregated$clust_annotation <-   ifelse (clusters4_aggregated$cluster 
                             ifelse (clusters4_aggregated$cluster ==  "clust_332", "Chl A-B binding protein", 
                             ifelse (clusters4_aggregated$cluster ==  "clust_417", "AMT", 
                             ifelse (clusters4_aggregated$cluster ==  "clust_2501", "Fe-Mn SOD", 
-                            ifelse (clusters4_aggregated$cluster ==  "clust_6573", "Cd Carbonic Anhydrase", 
                             ifelse (clusters4_aggregated$cluster ==  "clust_1525", "SLC-4",
                             ifelse (clusters4_aggregated$cluster ==  "clust_231", "Rhodopsin",
                             ifelse (clusters4_aggregated$cluster ==  "clust_1906", "Mn-cluster",
@@ -433,7 +435,8 @@ clusters4_aggregated$clust_annotation <-   ifelse (clusters4_aggregated$cluster 
                             ifelse (clusters4_aggregated$cluster ==  "clust_1372", "Urea transporter",
                             ifelse (clusters4_aggregated$cluster ==  "clust_320", "Urea carboxylase",
                             ifelse (clusters4_aggregated$cluster ==  "clust_6019", "Ornithine cyclodeaminase",    
-                            ifelse (clusters4_aggregated$cluster ==  "clust_655", "CA",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_655", "CA_clust_655",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_6573", "CA_clust_6573", 
                             ifelse (clusters4_aggregated$cluster ==  "clust_35", "Ribosome recycling",
                             ifelse (clusters4_aggregated$cluster ==  "clust_2490", "Rubisco",
                             ifelse (clusters4_aggregated$cluster ==  "clust_2244", "PEPC",
@@ -541,6 +544,7 @@ library(ggOceanMapsData)
 #png("ps117_stationmap.png", width=45*0.75, height=25*0.75, units="cm", res=900)
 
 bioassays <- data.frame(lon = c(-11.044,-0.011), lat =c(-70.25, -65), bioassay= c("BA2", "BA1")) 
+#bioassays <- data.frame(lon = c(165.4133), lat =c(-77.61895), bioassay= c("")) # mcmurdo ross sea TFG incubations
 map <- basemap(limits = c(-130, 100, -90,-55),
         bathymetry = TRUE, #this adds the bathymetry 
         glaciers = FALSE, 
@@ -559,14 +563,14 @@ map <- basemap(limits = c(-130, 100, -90,-55),
         axis.title.y=element_text(size = 16,face="bold", color = "black"), 
         legend.title = element_text(size = 10, face = "bold"), 
         legend.text = element_text(face = "bold"), 
-        #legend.position = "right",
         legend.position = "top",
         legend.justification = "left",
-        plot.margin = unit(c(0,0,0,0), units = "cm"), 
+        #plot.margin = unit(c(0,0,0,0), units = "cm"), 
         legend.key.height= unit(0.3, 'cm')) + 
         annotation_scale(location = "br", text_cex = 1, text_face = "bold") + 
-        geom_spatial_point(data = bioassays, aes(x = lon, y = lat), color = "red", size = 4) +
+        geom_spatial_point(data = bioassays, aes(x = lon, y = lat), color = "red", alpha = 0.5, size = 8) +
     geom_spatial_text(size = 6, aes(label=bioassays$bioassay, x = bioassays$lon, y = bioassays$lat), hjust =1.2, vjust = 0, color = "black") 
+
 
 
 #dev.off()
@@ -658,7 +662,7 @@ ggplot(filter (t0_3, !grepl ("0.58", concentration)),
 
 ```
 
-map, nutrients, chla, fv/fmphysical oceanography stuff
+nutrients, chla, fv/fmphysical oceanography stuff
 ```{r}
 fvfm <- ggplot(filter (alldata, grepl ("T0|T8", full_treatment_name) ), 
        aes(x=iron_treatment, 
@@ -827,9 +831,6 @@ plot_grid(map2, NULL, x,
 #          align = "vh")
 
 ```
-
-
-
 
 
 
@@ -1317,69 +1318,94 @@ fig2_pigment_nmds <- ggplot(data.scores, aes(x = NMDS1,
 
 ```
 
-diatom composition_genus 2022-04-17
+diatom-phaeo composition_genus 2022-04-17
 ```{r}
 #https://europepmc.org/article/pmc/7287063
-
-diatoms <- filter (norm_proteomicsdata, grepl("Bacillar", class))
-
-diatoms <- diatoms [c(13, 24:53)]
+diatoms <- filter (norm_proteomicsdata, grepl("Bacill|", class)) #do this for Bacillar and Prymnes separately
+diatoms <- diatoms [c(12, 24:53)]
 
 diatoms <- diatoms %>% mutate_at (2:31, funs (((. / sum(.)))))
 
-diatoms <- melt(diatoms, id.vars=c("G")) %>%
+diatoms <- melt(diatoms, id.vars=c("F")) %>%
             rename(treatment = variable) %>%
             rename(norm_abundance = value )
 
-diatoms$genus_a <-   ifelse (diatoms$G ==  "Thalassiosira", "Thalassiosira", 
-                            ifelse (diatoms$G ==  "Chaetoceros", "Chaetoceros", 
-                            ifelse (diatoms$G ==  "Fragilariopsis", "Fragilariopsis",
-                            ifelse (diatoms$G ==  "Pseudo-nitzschia", "Pseudo-nitzschia",
-                            ifelse (diatoms$G ==  "Araphid-pennate", "Araphid-pennate",
-                            ifelse (diatoms$G ==  "Polar-centric-Mediophyceae", "Other Polar-centric-Mediophyceae",
-                            ifelse (diatoms$G ==  "Raphid-pennate", "Other Raphid-pennate",  
-                            ifelse (diatoms$G ==  "Bacillariophyta_X", "Ambiguous Diatom",   
-                            "Other Diatoms"))))))))
-
+diatoms$genus_a <-   ifelse (diatoms$F ==  "Polar-centric-Mediophyceae", "Centric diatoms",
+                            ifelse (diatoms$F ==  "Raphid-pennate", "Pennate diatoms",  diatoms$F))
+#ifelse (diatoms$F ==  "Radial-centric-basal-Coscinodiscophyceae", "Centric diatoms",
+#ifelse (diatoms$F ==  "Araphid-pennate", "Pennate diatoms", diatoms$F
+                           
+# diatoms$genus_a <-   ifelse (diatoms$G ==  "Thalassiosira", "Thalassiosira", 
+#                             ifelse (diatoms$G ==  "Chaetoceros", "Chaetoceros", 
+#                             ifelse (diatoms$G ==  "Fragilariopsis", "Fragilariopsis",
+#                             ifelse (diatoms$G ==  "Pseudo-nitzschia", "Pseudo-nitzschia",
+#                             ifelse (diatoms$G ==  "Araphid-pennate", "Araphid-pennate",
+#                             ifelse (diatoms$G ==  "Polar-centric-Mediophyceae", "Other Polar-centric-Mediophyceae",
+#                             ifelse (diatoms$G ==  "Raphid-pennate", "Other Raphid-pennate",  
+#                             ifelse (diatoms$G ==  "Bacillariophyta_X", "Ambiguous Diatom",   
+#                             "Other Diatoms"))))))))
 
 diatoms_aggregated <- aggregate(diatoms$norm_abundance, by=list(Category=diatoms$genus_a, diatoms$treatment), FUN=sum) %>%
                   rename(norm_abundance = x) %>%
                   rename(treatment = Group.2) %>%
                   rename(genus = Category) 
 
-
 diatoms_aggregated <- diatoms_aggregated %>% separate(treatment, into=c("bioassay", "timepoint", "temperature_treatment", "iron_treatment",  "replicate"), sep = "_")
 
-
 diatoms_aggregated$treatment <- paste (diatoms_aggregated$temperature_treatment, diatoms_aggregated$iron_treatment, sep ='_')
-
-
-#png("diatom_genus.png", width=40*0.75, height=30*0.75, units="cm", res=600) 
-
 
 diatoms_aggregated$treatment2 <- ifelse (diatoms_aggregated$treatment ==  "LT_noFe", "LT_noFe", 
                             ifelse (diatoms_aggregated$treatment ==  "LT_Fe", "LT_Fe",
                             ifelse (diatoms_aggregated$treatment ==  "HT_noFe", "HT_noFe", 
                             ifelse (diatoms_aggregated$treatment ==  "HT_Fe", "HT_Fe",
                             "T0"))))
-  
-#legend.justification = c(1,1), #this locks the legend in position so it doesnt move around as you zoom in and out of the plot
 
-fig2_diatomspecies <- ggplot ((filter(diatoms_aggregated, grepl("Chae|Pseu", genus))), aes(
+
+#phaocystis 
+
+phaeo <- filter (norm_proteomicsdata, grepl("Prymnesio|", class)) #do this for Bacillar and Prymnes separately
+phaeo <- phaeo [c(12, 24:53)]
+phaeo <- phaeo %>% mutate_at (2:31, funs (((. / sum(.)))))
+phaeo <- melt(phaeo, id.vars=c("F")) %>%
+            rename(treatment = variable) %>%
+            rename(norm_abundance = value )
+
+phaeo$genus_a <-   ifelse (phaeo$F ==  "Phaeocystaceae", "Phaeocystis",
+                            phaeo$F)
+                           
+phaeo_aggregated <- aggregate(phaeo$norm_abundance, by=list(Category=phaeo$genus_a, phaeo$treatment), FUN=sum) %>%
+                  rename(norm_abundance = x) %>%
+                  rename(treatment = Group.2) %>%
+                  rename(genus = Category) 
+
+phaeo_aggregated <- phaeo_aggregated %>% separate(treatment, into=c("bioassay", "timepoint", "temperature_treatment", "iron_treatment",  "replicate"), sep = "_")
+
+phaeo_aggregated$treatment <- paste (phaeo_aggregated$temperature_treatment, phaeo_aggregated$iron_treatment, sep ='_')
+
+phaeo_aggregated$treatment2 <- ifelse (phaeo_aggregated$treatment ==  "LT_noFe", "LT_noFe", 
+                            ifelse (phaeo_aggregated$treatment ==  "LT_Fe", "LT_Fe",
+                            ifelse (phaeo_aggregated$treatment ==  "HT_noFe", "HT_noFe", 
+                            ifelse (phaeo_aggregated$treatment ==  "HT_Fe", "HT_Fe",
+                            "T0"))))
+
+diatoms_phae <- rbind(diatoms_aggregated, phaeo_aggregated)
+
+
+diatomgroups <- ggplot ((filter(diatoms_aggregated, grepl("Pennate|Centric", genus))), aes(
   x = factor(treatment2, level = tempFe_order),
   y = norm_abundance, 
-  shape = genus)) +  
-  stat_summary(fun = mean, geom = "point", show.legend = T, size = 5, alpha = 0.65)+
-  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, size = 1.1, width = 0.1)+ 
+  color = genus)) +  
+  stat_summary(fun = mean, geom = "point", show.legend = T, size = 5,  position= position_dodge(width=0.4))+
+  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, size = 1, width = 0.1,  position= position_dodge(width=0.4))+ 
   facet_grid(.~ bioassay )+
   theme_bw()+
-  ylab (expression(paste("Fraction contribution to \n total diatom proteins")))+
+  ylab (expression(paste("Fraction contribution to total proteins")))+
   #ylab ("Fraction contribution to total diatom proteins")+
-
   xlab ("") +
   scale_y_log10()+
-  scale_shape_manual(name="",
-                     values = c("Chaetoceros" = 16, "Pseudo-nitzschia" = 15))+ 
+  scale_color_manual(name="",
+                     values = c("Centric diatoms" = "grey50",
+                                "Pennate diatoms" = "black"))+ 
  theme(axis.text.x=element_text(face = "bold", size = 11, color = "black", vjust = 1, hjust = 1,  angle = 45),
         axis.title.y=element_text(size=14,face = "bold", color = "black"), 
         axis.text.y=element_text(face = "bold", size = 11, color = "black"),
@@ -1393,6 +1419,34 @@ fig2_diatomspecies <- ggplot ((filter(diatoms_aggregated, grepl("Chae|Pseu", gen
        #plot.margin = unit(c(0.25,0.25,0.25,0), units = "cm"))+
   guides(shape = guide_legend(override.aes = list(size=5)))#this locks the legend in position so it doesnt move around as you zoom in and out of the plot)
 
+
+phaeogroups <- ggplot ((filter(phaeo_aggregated, grepl("Phaeocystis", genus))), aes(
+  x = factor(treatment2, level = tempFe_order),
+  y = norm_abundance, 
+  color = genus)) +  
+  stat_summary(fun = mean, geom = "point", show.legend = T, size = 5, alpha = 0.5, position= position_dodge(width=0.4))+
+  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, size = 1, width = 0.1,  position= position_dodge(width=0.4))+ 
+  facet_grid(.~ bioassay )+
+  theme_bw()+
+  ylab (expression(paste("Fraction contribution to total proteins")))+
+  #ylab ("Fraction contribution to total diatom proteins")+
+  xlab ("") +
+  scale_y_log10(labels = label_number((accuracy = 0.01)))+
+  scale_color_manual(name="",
+                     values = c("Phaeocystis" = "#CC79A7"))+ 
+ theme(axis.text.x=element_text(face = "bold", size = 11, color = "black", vjust = 1, hjust = 1,  angle = 45),
+        axis.title.y=element_text(size=14,face = "bold", color = "black"), 
+        axis.text.y=element_text(face = "bold", size = 11, color = "black"),
+        strip.background =element_rect(fill = "white"),
+        legend.text = element_text(size = 10, face = "bold"), 
+        strip.text.x = element_text(size = 11, face = "bold"), 
+       legend.position = "top", 
+       legend.title = element_blank(),
+       legend.justification = "left", 
+       legend.box.margin=margin(-10,-10,-10,-10))+ 
+       #plot.margin = unit(c(0.25,0.25,0.25,0), units = "cm"))+
+  guides(shape = guide_legend(override.aes = list(size=5))) 
+  #scale_y_continuous(labels = label_number((accuracy = 0.01)))
 #In BA2, if there was more in-situ iron, then the LT + and - Fe might be too different, but the HT might exacerbate Fe deficiency because things would have grown more to use the Fe. 
 
 
@@ -1475,7 +1529,7 @@ plot
 ```{r}
 hm <- plot_grid(fig2_pigmentmeans, fig2_proteintopmeans, fig2_proteinbottommeans, 
           ncol=1,
-          labels = c("A ","B", ""), 
+          #labels = c("A ","B", ""), 
           align = "v", 
           rel_heights = c(1.25,0.65,1.1))
 
@@ -1484,21 +1538,19 @@ nmds <- plot_grid(NULL, fig2_pigment_nmds,
           NULL, fig2_peptide_nmds, 
           ncol=2, 
           rel_widths = c(0.05,1), 
-          rel_heights = c(1,1,1),
-          labels = c("C")) 
+          rel_heights = c(1,1,1))
+          #labels = c("C")) 
   
-col3 <- plot_grid (fig2_diatomspecies, fig2_Sidrawdown, 
+col3 <- plot_grid (diatomgroups, phaeogroups, fig2_Sidrawdown, 
                    ncol = 1, 
                    align = "v", axis = "l", 
-                  rel_heights =  c(1,0.8),
-                   labels = c("D","E"))
+                  rel_heights =  c(1,1,0.8))
+                  # labels = c("D","E", "F"))
 
 plot_grid(hm, nmds, NULL, col3, fig2_legend,
           ncol=5, 
           rel_widths = c(3.7,2.3,0.2,2.8,0.6))
 ```
-
-
 
 
 #Figure 3
@@ -1532,11 +1584,11 @@ BA_DE2 <- filter (BA_DE, grepl ("centric|pennate|Phaeocyst", taxon_F))
 
 BA_DE2$cluster <-   ifelse (BA_DE2$cluster ==  "clust_343", "ISIP-2A", 
                    ifelse (BA_DE2$cluster ==  "clust_411", "Nitrate reductase", 
-                            ifelse (BA_DE2$cluster ==  "clust_534", "Flavodoxin", 
                             ifelse (BA_DE2$cluster ==  "clust_1154", "ISIP-3", 
                             ifelse (BA_DE2$cluster ==  "clust_1814", "ISIP-1", 
                             ifelse (BA_DE2$cluster ==  "clust_1820", "Plastocyanin", 
-                            ifelse (BA_DE2$cluster ==  "clust_4660", "Flavodoxin-1", 
+                            ifelse (BA_DE2$cluster ==  "clust_534", "Flavodoxin", 
+                            #ifelse (BA_DE2$cluster ==  "clust_4660", "Flavodoxin-1", 
                             ifelse (BA_DE2$cluster ==  "clust_5562", "Cu-Zn SOD", 
                             ifelse (BA_DE2$cluster ==  "clust_55", "PSI PsaA/PsaB", 
                             ifelse (BA_DE2$cluster ==  "clust_808", "Ferredoxin", 
@@ -1548,7 +1600,6 @@ BA_DE2$cluster <-   ifelse (BA_DE2$cluster ==  "clust_343", "ISIP-2A",
                             ifelse (BA_DE2$cluster ==  "clust_195", "Chl A-B binding",
                             ifelse (BA_DE2$cluster ==  "clust_417", "AMT", 
                             ifelse (BA_DE2$cluster ==  "clust_2501", "Fe-Mn SOD", 
-                            ifelse (BA_DE2$cluster ==  "clust_6573", "Cd Carbonic Anhydrase", 
                             ifelse (BA_DE2$cluster ==  "clust_1525", "SLC-4",
                             ifelse (BA_DE2$cluster ==  "clust_231", "Rhodopsin",
                             ifelse (BA_DE2$cluster ==  "clust_1906", "Mn-cluster",
@@ -1558,7 +1609,8 @@ BA_DE2$cluster <-   ifelse (BA_DE2$cluster ==  "clust_343", "ISIP-2A",
                             ifelse (BA_DE2$cluster ==  "clust_1372", "Urea transporter",
                             ifelse (BA_DE2$cluster ==  "clust_320", "Urea carboxylase",
                             ifelse (BA_DE2$cluster ==  "clust_6019", "Ornithine cyclodeaminase",    
-                            ifelse (BA_DE2$cluster ==  "clust_655", "CA",
+                            ifelse (BA_DE2$cluster ==  "clust_655", "CA_clust_655",
+                            ifelse (BA_DE2$cluster ==  "clust_6573", "CA_clust_6573", 
                             ifelse (BA_DE2$cluster ==  "clust_35", "Ribosome recycling",
                             ifelse (BA_DE2$cluster ==  "clust_2490", "Rubisco",
                             ifelse (BA_DE2$cluster ==  "clust_2244", "PEPC",
@@ -1569,17 +1621,25 @@ BA_DE2$cluster <-   ifelse (BA_DE2$cluster ==  "clust_343", "ISIP-2A",
                             ifelse (BA_DE2$cluster ==  "clust_42", "PSII RC, D1",
                             ifelse (BA_DE2$cluster ==  "clust_1978", "PSII PsbU",
                             ifelse (BA_DE2$cluster ==  "clust_498", "PSII CP47",
-                            ifelse (BA_DE2$cluster ==  "clust_1497", "Cyt f",BA_DE2$cluster 
+                            ifelse (BA_DE2$cluster ==  "clust_1497", "Cyt f",
+                            ifelse (BA_DE2$cluster ==  "clust_1886", "SLC",
+                            BA_DE2$cluster 
                     ))))))))))))))))))))))))))))))))))))))))
 
-cluster_order <- c('ISIP-1', 'ISIP-2A', 'ISIP-3', 'Fasciclin','Cu-Zn SOD','Fe-Mn SOD', 'Plastocyanin',  'Rhodopsin', 'Flavodoxin', 'Flavodoxin-1', 'Ferredoxin', "Cyt b6", 'Cyt f', "Chl A-B binding",'PSI RC','PSI PsaA/PsaB', "PSII PsbU", 'PSII CP47','PSII RC, D1', 'Mn-cluster', 'Urea transporter', 'Urea carboxylase', 'Nitrate reductase', 'SLC-4' )
+cluster_order <- c('ISIP-1', 'ISIP-2A', 'ISIP-3', 'Fasciclin','Cu-Zn SOD', 'Fe-Mn SOD', 'Nitrate reductase', 'Plastocyanin',  'Rhodopsin', 'Flavodoxin', 'Ferredoxin', "Cyt b6", 'Cyt f', "Chl A-B binding",'PSI RC','PSI PsaA/PsaB', "PSII PsbU", 'PSII CP47','PSII RC, D1', 'Mn-cluster' )
+
+#"clust_87", "clust_888", "clust_1702", "clust_12215", "clust_4938" 'Urea carboxylase', 'Urea transporter',
 
 BA_DE3 <- filter (BA_DE2, grepl (paste(cluster_order, collapse = "|"), cluster)) 
 
 BA_DE3$BA1_ironDE <-  ifelse (BA_DE3$BA1_Fe_FDR < 0.05, "*", "")
-BA_DE3$BA1_tempDE <-  ifelse (BA_DE3$BA1_temp_FDR < 0.05, "*", "")
+BA_DE3$BA1_tempDE <-  ifelse (BA_DE3$BA1_noFe_HT_LT_FDR < 0.05, "*", "")
+BA_DE3$BA1_FextempDE <-  ifelse (BA_DE3$BA1_Fetempinteraction_FDR < 0.05, "*", "")
+
+
 BA_DE3$BA2_ironDE <-  ifelse (BA_DE3$BA2_Fe_FDR < 0.05, "*", "")
-BA_DE3$BA2_tempDE <-  ifelse (BA_DE3$BA2_temp_FDR < 0.05, "*", "")
+BA_DE3$BA2_tempDE <-  ifelse (BA_DE3$BA2_noFe_HT_LT_FDR < 0.05, "*", "")
+BA_DE3$BA2_FextempDE <-  ifelse (BA_DE3$BA2_Fetempinteraction_FDR < 0.05, "*", "")
 
 
 DE_slide <- function (effect, significance, title) {
@@ -1591,11 +1651,11 @@ DE_slide <- function (effect, significance, title) {
     scale_color_manual(name="",
                        breaks = c("centric", "pennate","Phaeocystaceae"),
                        labels = c("Centric diatoms", "Pennate diatoms", "Phaeocystis"),
-                       values = c("black", 'grey60', '#9E3C0E')) +
+                       values = c("black", 'grey60', 'darkgreen')) +
     
     scale_shape_manual(name="",
                        breaks = c("*", ""),
-                       values = c(10,19), 
+                       values = c(19,1), 
                        guide = "none") +
     ylab("")+ 
     xlab(expression (paste("Log"[2]~fold~change)))+
@@ -1608,12 +1668,42 @@ DE_slide <- function (effect, significance, title) {
           legend.text = element_text(size = 9, color = "black", face = "bold")) +
           geom_vline (xintercept = c(0), col = "black", lty = 2, lwd=0.3 )}
 
-BA1_Fe <- DE_slide (BA1_Fe_logFC, BA1_ironDE, "BA1 Fe Effect" )+theme (legend.position = c(0.95,0), legend.justification = c(0.95,0), legend.key.size = unit (0.4, "cm")) + guides(colour = guide_legend(override.aes = list(size=2))) + theme(legend.margin=margin(t=0, r=0, b=0, l=0, unit="cm"))
-BA1_temp <- DE_slide (BA1_temp_logFC, BA1_tempDE, "BA1 Temperature Effect" ) +theme(legend.position = "none")
+BA1_Fe <- DE_slide (BA1_Fe_logFC, BA1_ironDE, "BA1 Fe Effect" )+theme (legend.position = c(0.95,0), legend.justification = c(0.95,0), legend.key.size = unit (0.4, "cm")) + guides(colour = guide_legend(override.aes = list(size=2))) + theme(legend.margin=margin(t=0, r=0, b=0, l=0, unit="cm")) 
 
-BA2_Fe <- DE_slide (BA2_Fe_logFC, BA2_ironDE, "BA2 Fe Effect" ) +theme(legend.position = "none") 
-BA2_temp <- DE_slide (BA2_temp_logFC, BA2_tempDE, "BA2 Temperature Effect" ) +theme(legend.position = "none") 
+BA1_temp <- DE_slide (BA1_noFe_HT_LT_logFC, BA1_tempDE, "BA1 Temperature Effect" ) + theme(legend.position = "none") 
+
+BA2_Fe <- DE_slide (BA2_Fe_logFC, BA2_ironDE, "BA2 Fe Effect" ) + theme(legend.position = "none") 
+
+BA2_temp <- DE_slide (BA2_noFe_HT_LT_logFC, BA2_tempDE, "BA2 Temperature Effect" ) + theme(legend.position = "none")
+
+DE_slide (BA1_Fetempinteraction_logFC, BA1_FextempDE, "BA1 FexTemperature Effect" ) + theme(legend.position = "none") 
+
 ```
+
+
+point size test
+```{r}
+#combine clusters first 
+
+
+#combine DE and norm protein data 
+BA_DE2$F <- BA_DE2$taxon_F
+clustsize <- merge (norm_proteomicsdata, BA_DE2, by = c("cluster", "F"))
+
+clustsize2 <- clustsize[c(1,2,37,38)]
+clustsize2$BA1mean <- rowMeans(clustsize2[,c(3,4)])
+
+#combine clusters
+
+
+ggplot(clustsize2, aes(x=BA1mean)) + 
+  geom_histogram(color = "black", fill = "white") 
+ #geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ #geom_density(alpha=.2, fill="#FF6666") +
+  scale_x_log10()
+#get cluster abundance 
+```
+
 
 legends
 ```{r}
@@ -1667,10 +1757,17 @@ a <- plot_grid(metals_Fe, metals_Mn, metals_Cu, metals_Zn,
 b <- plot_grid(BA1_Fe,BA2_Fe,  BA1_temp,  BA2_temp,
           nrow = 2, 
           align = 'hv')
-        
+  
 plot_grid(a, NULL, b, 
           nrow = 1, 
-          rel_widths = c(0.3,0.01,1))
+          rel_widths = c(0.35,0.01,1))
+```
+
+
+fasciclin
+```{r}
+fas <- read.table ("fasciclin_environmental_parameters.csv")
+
 ```
 
 heatmaps
@@ -2032,29 +2129,36 @@ plot_grid (fig3legend, x,
 
 
 #Figure 5
-
 ```{r}
 metals_Cd <- fig3_metals (PCd_nM, PCd:PON)
 
-protein_clusters_hm ("centric|pennate", "Carbonic|CA", "BA1" )
+CA_centric <- protein_clusters ("centric|Bacill", "CA_clust_6573", protein = c("CA_clust_6573"), shape = c(19,15)) + ggtitle ("Centric diatoms - clust_6573") + theme(legend.position = "none") 
 
-protein_clusters_hm ("centric|pennate", "Carbonic|CA", "BA2" )
+CA_pennate <- protein_clusters ("pennate", "CA_clust_655", protein = c("CA_clust_655"), shape = c(19,15)) + ggtitle ("Pennate diatoms - clust_655") + theme(legend.position = "none") 
 
+CA_phaeo <- protein_clusters ("Phaeo", "CA_clust_655", protein = c("CA_clust_655"), shape = c(19,15)) + ggtitle ("Phaeocystis - clust_655") + theme(legend.position = "none")
+
+#protein_clusters ("pennate", "Cation Efflux protein", protein = c("Cation Efflux protein"), shape = c(19,15)) look into efflux proteins
+
+#protein_clusters_hm ("centric|pennate", "Carbonic|CA", "BA1")
+
+#protein_clusters_hm ("centric|pennate", "Carbonic|CA", "BA2")
+
+#Maybe look atr SLC4 ? 
 
 ```
 
 plot
 ```{r}
-plot_grid(NULL, metals_Cd, NULL, Cdproteins_diatoms, NULL, Cdproteins_phaeo, 
-          nrow = 1,
-          rel_widths = c(0.05, 1, 0.1, 1.3, 0.05, 1.3),
-          align = 'h')
+plot_grid( metals_Cd,  CA_centric,  
+           CA_pennate, CA_phaeo, 
+          nrow = 4, 
+        
+          align = 'hv')
+         
 
 #and heatmap
 ```
-
-
-
 
 
 #Misc 
@@ -2227,7 +2331,6 @@ BA1_2$cluster <-   ifelse (BA1_2$cluster ==  "clust_343", "ISIP-2A",
                             ifelse (BA1_2$cluster ==  "clust_5925", "Chl A-B binding protein2", 
                             ifelse (BA1_2$cluster ==  "clust_417", "AMT", 
                             ifelse (BA1_2$cluster ==  "clust_2501", "Fe-Mn SOD", 
-                            ifelse (BA1_2$cluster ==  "clust_6573", "Cd Carbonic Anhydrase", 
                             ifelse (BA1_2$cluster ==  "clust_1525", "SLC-4",
                             ifelse (BA1_2$cluster ==  "clust_231", "Rhodopsin",
                             ifelse (BA1_2$cluster ==  "clust_1906", "Mn-cluster",
@@ -2237,7 +2340,8 @@ BA1_2$cluster <-   ifelse (BA1_2$cluster ==  "clust_343", "ISIP-2A",
                             ifelse (BA1_2$cluster ==  "clust_1372", "Urea transporter",
                             ifelse (BA1_2$cluster ==  "clust_320", "Urea carboxylase",
                             ifelse (BA1_2$cluster ==  "clust_6019", "Ornithine cyclodeaminase",    
-                            ifelse (BA1_2$cluster ==  "clust_655", "CA",
+                            ifelse (BA1_2$cluster ==  "clust_655", "CA_clust_655",
+                            ifelse (BA1_2$cluster ==  "clust_6573", "CA_clust_6573", 
                             ifelse (BA1_2$cluster ==  "clust_35", "Ribosome recycling",
                             ifelse (BA1_2$cluster ==  "clust_2490", "Rubisco",
                             ifelse (BA1_2$cluster ==  "clust_2244", "PEPC",
@@ -2973,7 +3077,6 @@ clusters4_aggregated_means$clust_annotation <-   ifelse (clusters4_aggregated_me
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_332", "Chl A-B binding protein", 
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_417", "AMT", 
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_2501", "Fe-Mn SOD", 
-                            ifelse (clusters4_aggregated_means$cluster ==  "clust_6573", "Cd Carbonic Anhydrase", 
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_1525", "SLC-4",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_231", "Rhodopsin",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_1906", "Mn-cluster",
@@ -2983,7 +3086,8 @@ clusters4_aggregated_means$clust_annotation <-   ifelse (clusters4_aggregated_me
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_1372", "Urea transporter",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_320", "Urea carboxylase",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_6019", "Ornithine cyclodeaminase",    
-                            ifelse (clusters4_aggregated_means$cluster ==  "clust_655", "CA",
+                            ifelse (clusters4_aggregated_means$cluster ==  "clust_655", "CA_clust_655",
+                            ifelse (clusters4_aggregated_means$cluster ==  "clust_6573", "CA_clust_6573", 
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_35", "Ribosome recycling",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_2490", "Rubisco",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_2244", "PEPC",
@@ -4395,6 +4499,45 @@ meltedsize2 <- subset (meltedsize, rounded <200000 )
 ```
 
 
+POC-chla
+```{r}
+alldata$PONchla <- alldata$PON_ug_L/alldata$total_chla_ug_L
+
+
+ggplot(filter(alldata, grepl("9|", daycount)), aes(x=daycount, 
+                y=  PONchla,
+                color = temperature_treatment, 
+                shape = iron_treatment)) + 
+  facet_wrap(~bioassay)+
+  #geom_point(size =3, alpha =0.5)+
+  stat_summary(fun = mean, geom = "point", show.legend = T, size = 5, stroke = 1.8, alpha = 0.5)+
+  #stat_summary(fun = mean, geom = "line", size = 1.1, aes(linetype = iron_treatment))+
+  stat_summary(fun.data =  mean_se, geom = "errorbar", size = 1.3, width = 0.1)+
+  
+  scale_color_manual(name="Temperature",
+                     breaks = c("LT","HT"),
+                     labels = c("ambient", "warm"),
+                     values = c('black', 'darkorange2', 'black')) +
+  
+  scale_shape_manual(name = "Iron",
+                     breaks = c("noFe","Fe", "T0"), #this removes the T0 from the legend
+                     labels = c("noFe", "Fe", "T0"),
+                     values = c(1,19, 1)) + #this keeps the T0 formatting that I want
+  ylab (expression ("PON:Chla (ug:ug)")) + 
+  xlab (expression ("Day Count")) +
+  theme_bw()+
+  theme(axis.title.x=element_text(size = 20,face = "bold", color = "black"), 
+        axis.text.x=element_text(face = "bold", size = 15, color = "black", vjust = 0.5, hjust = 1),
+        axis.title.y=element_text(size=20, color = "black"), 
+        axis.text.y=element_text(face = "bold", size = 15, color = "black"),
+        strip.background =element_rect(fill = "white"),
+        strip.text.x = element_text(size = 15, face = "bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 14))
+
+
+```
+
 
 #pigments
 ```{r}
@@ -4673,7 +4816,6 @@ clusters4_aggregated$clust_annotation <-   ifelse (clusters4_aggregated$cluster 
                             ifelse (clusters4_aggregated$cluster ==  "clust_332", "Chl A-B binding protein", 
                             ifelse (clusters4_aggregated$cluster ==  "clust_417", "AMT", 
                             ifelse (clusters4_aggregated$cluster ==  "clust_2501", "Fe-Mn SOD", 
-                            ifelse (clusters4_aggregated$cluster ==  "clust_6573", "Cd Carbonic Anhydrase", 
                             ifelse (clusters4_aggregated$cluster ==  "clust_1525", "SLC-4",
                             ifelse (clusters4_aggregated$cluster ==  "clust_231", "Rhodopsin",
                             ifelse (clusters4_aggregated$cluster ==  "clust_1906", "Mn-cluster",
@@ -4683,7 +4825,8 @@ clusters4_aggregated$clust_annotation <-   ifelse (clusters4_aggregated$cluster 
                             ifelse (clusters4_aggregated$cluster ==  "clust_1372", "Urea transporter",
                             ifelse (clusters4_aggregated$cluster ==  "clust_320", "Urea carboxylase",
                             ifelse (clusters4_aggregated$cluster ==  "clust_6019", "Ornithine cyclodeaminase",    
-                            ifelse (clusters4_aggregated$cluster ==  "clust_655", "CA",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_655", "CA_clust_655",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_6573", "CA_clust_6573", 
                             ifelse (clusters4_aggregated$cluster ==  "clust_35", "Ribosome recycling",
                             ifelse (clusters4_aggregated$cluster ==  "clust_2490", "Rubisco",
                             ifelse (clusters4_aggregated$cluster ==  "clust_2244", "PEPC",
@@ -4799,8 +4942,8 @@ clusters4_aggregated_means$clust_annotation <-   ifelse ( clusters4_aggregated_m
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_2934", "Multi-Cu Oxidase", 
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_2501", "Fe-Mn SOD", 
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_5562", "Cu-Zn SOD - centric", 
-                            ifelse (clusters4_aggregated_means$cluster ==  "clust_6573", "CDCA - centric", 
-                            ifelse (clusters4_aggregated_means$cluster ==  "clust_655", "CDCA - pennate",
+                            ifelse (clusters4_aggregated_means$cluster ==  "clust_6573", "CA_clust_6573-centric", 
+                            ifelse (clusters4_aggregated_means$cluster ==  "clust_655", "CA_clust_655-pennate",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_1906", "Mn-cluster",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_812", "ZIP",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_225", "Cyt Oxidase",
@@ -4886,8 +5029,8 @@ clusters4_aggregated_means$clust_annotation <-   ifelse ( clusters4_aggregated_m
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_2934", "Multi-Cu Oxidase", 
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_2501", "Fe-Mn SOD", 
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_5562", "Cu-Zn SOD - centric", 
-                            ifelse (clusters4_aggregated_means$cluster ==  "clust_6573", "CDCA - centric", 
-                            ifelse (clusters4_aggregated_means$cluster ==  "clust_655", "CDCA - pennate",
+                            ifelse (clusters4_aggregated_means$cluster ==  "clust_6573", "CA_clust_6573-centric", 
+                            ifelse (clusters4_aggregated_means$cluster ==  "clust_655", "CA_clust_655-pennate",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_1906", "Mn-cluster",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_812", "ZIP",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_225", "Cyt Oxidase",
@@ -5045,7 +5188,6 @@ clusters4_aggregated_means$clust_annotation <-   ifelse (clusters4_aggregated_me
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_332", "Chl A-B binding protein", 
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_417", "AMT", 
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_2501", "Fe-Mn SOD", 
-                            ifelse (clusters4_aggregated_means$cluster ==  "clust_6573", "Cd Carbonic Anhydrase", 
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_1525", "SLC-4",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_231", "Rhodopsin",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_1906", "Mn-cluster",
@@ -5055,7 +5197,8 @@ clusters4_aggregated_means$clust_annotation <-   ifelse (clusters4_aggregated_me
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_1372", "Urea transporter",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_320", "Urea carboxylase",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_6019", "Ornithine cyclodeaminase",    
-                            ifelse (clusters4_aggregated_means$cluster ==  "clust_655", "CA",
+                            ifelse (clusters4_aggregated_means$cluster ==  "clust_655", "CA_clust_655",
+                            ifelse (clusters4_aggregated_means$cluster ==  "clust_6573", "CA_clust_6573", 
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_35", "Ribosome recycling",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_2490", "Rubisco",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_2244", "PEPC",
@@ -5162,8 +5305,8 @@ clusters4_aggregated_means$clust_annotation <-   ifelse ( clusters4_aggregated_m
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_2934", "Multi-Cu Oxidase", 
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_2501", "Fe-Mn SOD", 
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_5562", "Cu-Zn SOD - centric", 
-                            ifelse (clusters4_aggregated_means$cluster ==  "clust_6573", "CDCA - centric", 
-                            ifelse (clusters4_aggregated_means$cluster ==  "clust_655", "CDCA - pennate",
+                            ifelse (clusters4_aggregated_means$cluster ==  "clust_6573", "CA_clust_6573-centric", 
+                            ifelse (clusters4_aggregated_means$cluster ==  "clust_655", "CA_clust_655-pennate",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_1906", "Mn-cluster",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_812", "ZIP",
                             ifelse (clusters4_aggregated_means$cluster ==  "clust_225", "Cyt Oxidase",
