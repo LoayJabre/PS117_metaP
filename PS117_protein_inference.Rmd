@@ -1,0 +1,934 @@
+Load necessary packages
+```{r}
+library(cowplot)
+library(data.table)
+library(dplyr)
+library(ggplot2)
+library(ggplotify)
+library(ggridges)
+library(ggpubr)
+library(gridExtra)
+library(grid)
+library(gplots)
+library(magrittr)
+library(plotly)
+library(reshape2)
+library(stringr)
+library(scales)
+library(tidyr)
+library(tidyverse)
+#library(treemapify)
+library(vegan)
+library(goeveg)
+library(ggh4x)
+setwd("D:/School/PhD/PS117/data/")
+
+allproteomicsdata <- read.csv("all_ps117_taxon_function_peptides_non-normalized_injection_means_20230204.csv", header = T) 
+
+#allproteomicsdata <- read.csv("all_ps117_taxon_function_non-normalized_injection_means_20220421.csv", header = T) %>% mutate_at (24:53, funs ((. / sum(.)))) #this normalizes the data to total peptide abundance
+
+```
+
+
+inference with new data
+```{r}
+taxonomy <- allproteomicsdata [c(1, 21, 30:36)]
+
+unique(taxonomy$domain)
+
+taxonomy$domainplot <- ifelse(taxonomy$domain == "unassigned_tax", "unassigned domain", 
+                       ifelse (taxonomy$domain == "ambiguous_domain", "ambiguous domain", 
+                       ifelse (taxonomy$domain == "not_in_annotation", "not in annotation", 
+                      "prokaryote or eukaryote")))
+
+taxonomy_domain <- data.frame(table(taxonomy$domainplot)) 
+
+ggplot(taxonomy_domain, aes(x = reorder (Var1, -Freq), y = Freq)) +
+      geom_bar(stat="identity") +
+      geom_text(aes( label = round(100*(Freq/(sum(Freq))), digits = 2),
+                y= Freq ), stat= "identity", vjust = -.5) +
+      theme_bw()+
+      xlab ("")+
+      ylab ("peptide count")+
+      theme(axis.text.x=element_text(face = "bold", size = 12, color = "black", vjust = 0.5, hjust = 0.5),
+          axis.title.x=element_text(size=16, color = "black"),
+          axis.title.y=element_text(size=16, color = "black"),
+          axis.text.y=element_text(face = "bold", size = 12, color = "black"))
+
+###
+###
+
+taxonomy$Fplot <- ifelse (taxonomy$F == "Polar-centric-Mediophyceae", "centric diatom", 
+                      ifelse (taxonomy$F == "Radial-centric-basal-Coscinodiscophyceae", "centric diatom", 
+                      ifelse (taxonomy$F == "Araphid-pennate", "pennate diatom",
+                      ifelse (taxonomy$F == "Raphid-pennate", "pennate diatom", 
+                      ifelse (taxonomy$F == "Bacillariophyta_X", "ambiguous diatom", 
+                      ifelse (taxonomy$F == "Phaeocystaceae", "phaeocystis", 
+                      ifelse (taxonomy$F ==  "Prymnesiophyceae", "ambiguous prymnesiophyte",
+                      ifelse (taxonomy$F == "Eukaryota", "ambiguous eukaryote", 
+                      ifelse (taxonomy$F == "ambiguous_domain", "ambiguous domain", 
+                      ifelse(taxonomy$F == "unassigned_tax", "unassigned domain", 
+                      ifelse(taxonomy$F == "not_in_annotation", "not in annotation", 
+                      "other prok or euk")))))))))))
+
+taxonomy_group <- data.frame(table(taxonomy$Fplot)) 
+
+ggplot(taxonomy_group, aes(x = reorder (Var1, -Freq), y = Freq)) +
+      geom_bar(stat="identity") +
+      geom_text(aes( label = round(100*(Freq/(sum(Freq))), digits = 2) ,
+                y= Freq ), stat= "identity", vjust = -.5) +
+      theme_bw()+
+      xlab ("")+
+      ylab ("peptide count")+
+      theme(axis.text.x=element_text(face = "bold", size = 12, color = "black", angle = 70, vjust = 1, hjust = 1),
+          axis.title.x=element_text(size=16, color = "black"),
+          axis.title.y=element_text(size=16, color = "black"),
+          axis.text.y=element_text(face = "bold", size = 12, color = "black"))
+```
+
+
+
+Looking at function (cluster) 
+```{r}
+allproteomicsdata$clust_inference <- ifelse (allproteomicsdata$uniq_cluster == "not_in_annotation", "not in annotation", 
+                                     ifelse (allproteomicsdata$uniq_cluster == "unassigned_cluster", "unassigned cluster", 
+                                     ifelse (grepl('")', allproteomicsdata$uniq_cluster), "ambiguous cluster",
+                                     "unique cluster")))
+
+unique(allproteomicsdata$clust_inference)
+
+cluster_inference <- data.frame(table(allproteomicsdata$clust_inference)) 
+
+ggplot(cluster_inference, aes(x = reorder (Var1, -Freq), y = Freq)) +
+      geom_bar(stat="identity") +
+      geom_text(aes( label = round(100*(Freq/(sum(Freq))), digits = 2),
+                y= Freq ), stat= "identity", vjust = -.5) +
+      theme_bw()+
+      xlab ("")+
+      ylab ("peptide count")+
+      theme(axis.text.x=element_text(face = "bold", size = 12, color = "black", vjust = 0.5, hjust = 0.5),
+          axis.title.x=element_text(size=16, color = "black"),
+          axis.title.y=element_text(size=16, color = "black"),
+          axis.text.y=element_text(face = "bold", size = 12, color = "black"))
+
+
+```
+
+
+
+
+
+Looking at taxonomy overall
+```{r}
+taxonomy <- allproteomicsdata [c(1, 7:14)]
+
+taxonomy$domainplot <- ifelse(taxonomy$domain == "unassigned_tax", "unassigned domain", 
+                       ifelse (taxonomy$domain == "ambiguous_domain", "ambiguous domain", 
+                      "prokaryote/eukaryote"))
+
+domainplot <- c("unassigned domain", "ambiguous domain", "prokaryote / eukaryote" )
+count <- c(53, 891, 33379 )
+
+length(grep("prokaryote/eukaryote", taxonomy$domainplot))
+                
+taxonomy_domain <- data.frame(domainplot, count)
+
+ggplot(taxonomy_domain, aes(x = reorder (domainplot, -count), y = count)) +
+ geom_bar(stat="identity") +
+  geom_text(aes( label = round(100*(count/(sum(count))), digits = 2) ,
+                   y= count ), stat= "identity", vjust = -.5) +
+   theme_bw()+
+  xlab ("")+
+    ylab ("peptide count")+
+
+    theme(axis.text.x=element_text(face = "bold", size = 12, color = "black", vjust = 0.5, hjust = 0.5),
+          axis.title.x=element_text(size=16, color = "black"),
+          axis.title.y=element_text(size=16, color = "black"),
+          axis.text.y=element_text(face = "bold", size = 12, color = "black"))
+
+
+
+taxonomy$Fplot <- ifelse (taxonomy$F == "Polar-centric-Mediophyceae", "centric diatom", 
+                      ifelse (taxonomy$F == "Radial-centric-basal-Coscinodiscophyceae", "centric diatom", 
+                      ifelse (taxonomy$F == "Araphid-pennate", "pennate diatom",
+                      ifelse (taxonomy$F == "Raphid-pennate", "pennate diatom", 
+                      ifelse (taxonomy$F == "Bacillariophyta_X", "ambiguous diatom", 
+                      ifelse (taxonomy$F == "Phaeocystaceae", "phaeocystis", 
+                      ifelse (taxonomy$F ==  "Prymnesiophyceae", "ambiguous prymnesiophyte",
+                      ifelse (taxonomy$F == "Eukaryota", "ambiguous eukaryote", 
+                      ifelse (taxonomy$F == "ambiguous_domain", "ambiguous domain",
+                      ifelse(taxonomy$F == "unassigned_tax", "unassigned domain", 
+                      "other prok or euk"))))))))))
+
+
+groupplot <- c("unassigned domain", "ambiguous domain", "centric diatom", "pennate diatom", "ambiguous diatom", "phaeocystis", "ambiguous prymnesiophyte", "ambiguous eukaryote", "other")
+
+count <- c(53, 891, 7352, 4547, 2839, 5280, 157, 2811, 10393  )
+taxonomy_group <- data.frame(groupplot, count)
+
+length(grep("other", taxonomy$Fplot))
+
+ggplot(taxonomy_group, aes(x = reorder (groupplot, -count), y = count)) +
+ geom_bar(stat="identity") +
+  geom_text(aes( label = round(100*(count/(sum(count))), digits = 2) ,
+                   y= count ), stat= "identity", vjust = -.5) +
+   theme_bw()+
+   xlab ("")+
+    ylab ("peptide count")+
+    theme(axis.text.x=element_text(face = "bold", size = 12, color = "black", angle = 70, vjust = 1, hjust = 1),
+          axis.title.x=element_text(size=16, color = "black"),
+          axis.title.y=element_text(size=16, color = "black"),
+          axis.text.y=element_text(face = "bold", size = 12, color = "black"))
+```
+
+Looking at function (cluster) 
+```{r}
+length(grep("ambiguous_cluster", allproteomicsdata$cluster)) #1700
+length(grep("unassigned_cluster",allproteomicsdata$cluster)) #4932
+
+length(allproteomicsdata$cluster[which(allproteomicsdata$cluster != "unassigned_cluster")])
+
+clustergeneral <- c("ambiguous cluster", "unassigned cluster", "unique cluster")
+clustergeneral_count <- c (1700, 4932, 27691)
+
+generalcluster <- data.frame(clustergeneral, clustergeneral_count)
+
+ggplot(generalcluster, aes(x = reorder (clustergeneral, -clustergeneral_count), y = clustergeneral_count)) +
+ geom_bar(stat="identity") +
+  geom_text(aes( label = round(100*(clustergeneral_count/(sum(clustergeneral_count))), digits = 2) ,
+                   y= clustergeneral_count ), stat= "identity", vjust = -.5) +
+   theme_bw()+
+  xlab ("")+
+    ylab ("peptide count")+
+
+    theme(axis.text.x=element_text(face = "bold", size = 12, color = "black", vjust = 0.5, hjust = 0.5),
+          axis.title.x=element_text(size=16, color = "black"),
+          axis.title.y=element_text(size=16, color = "black"),
+          axis.text.y=element_text(face = "bold", size = 12, color = "black"))
+
+
+phaeocys <- filter (allproteomicsdata, grepl (" unassigned_best_hit_annot", best_hit_annotation))
+```
+
+### Look more into the XXX_decoy match to see whether they are only decoys or decoys+nondecoys 
+
+functional annotation with taxonomy
+I'm trying to do this so it includes all the clusters instead of saying ambiguous cluster. 
+```{r}
+#this script takes the final pipeline output (a.cvs file) after database searching, and assigns a taxonomic group and a functional annotation to each peptide using an annotation file. It does not assign taxonomic/functional annotation to any peptide that matches with more than one taxonomic group (I might tackle razor peptides, or peptides that match to more than one taxonomy at a later point). 
+
+#It also aggregates taxonomies based on the lowest taxonomic resolution. e.g. if a peptide matches both centric and pennate diatoms, it will classify it as "unknown_Bacillariophyta", if that taxonomic classification is ambiguous, it will move up until it reaches the domain - if domains are ambiguous it will classify is 'ambiguous domain' -- all 'unknown' classification are peptides that matched to NA annotation. 
+
+#It then normalizes the abundance of each peptide (MS1, ion intensity) to total peptide abundance in that injection. Total peptide abunance does not inclue CRAP (I remove CRAP matches early on), but it includes ambiguos (peptides that match to more than one annotation) and non-ambiguous peptides. 
+
+setwd("D:/School/PhD/PS117/")
+
+annotations <- fread("D:/School/PhD/PS117/data/datannotations/annotation_allTFG.grpnorm_mmetsp_fc_pn_reclassified.edgeR.csv") [,c(1,2,4:9,12:15,22,26:29,44,43,45)]
+
+filelist <- list.files(pattern = "211216_1037_097_LJ_S02_51.csv") 
+
+lapply(filelist, function(x) {
+      read.table(x, header=T) %>%  
+      select(1,2,3,5) %>% #read only columns of interest
+  
+      rename(orf_id = protein) %>% #change name of 'protein' column to 'orf_id' for consistency with annotation file
+      filter(!grepl("sp", orf_id)) %>% #delete any peptides that matche with CRAP database
+      separate_rows(orf_id, sep = "/") %>% #c  
+      mutate (orf_id = gsub("XXX_","", as.character(orf_id))) %>% #d
+
+      merge(annotations, by = "orf_id", all.x = TRUE) %>% #e add taxomonic ID and functional annotation to each peptide. Some peptides with match to several ORFs with different tax. IDs, so they'll have more than one tax. ID. 
+#all.x =TRUE keeps all the peptides, even the ones that matched to the databse but are not in the annotation file. 
+#when manualy searching a contig ID, the '+' at the end makes invisible
+  
+      replace(is.na(.), "not-in-annotation")  %>%   #now there are two types of missing data, NA and nothing in the column. NA means it's not in the annotation file, empty means annotation file doesn't have anything for this orf. So I'm replacing NA's with 'not in annotation' to make that clearer
+
+#put 'unassigned' in all emptpy cells to make data management easier down the line
+      mutate (cluster = sub("^$","unassigned_cluster", as.character(cluster))) %>% 
+      mutate (kegg_hit = sub("^$","unassigned_kegg_hit", as.character(kegg_hit))) %>%
+      mutate (kegg_desc = sub("^$","unassigned_kegg_desc", as.character(kegg_desc))) %>%
+      mutate (kegg_pathway = sub("^$","unassigned_kegg_pathway", as.character(kegg_pathway))) %>%
+      mutate (KO = sub("^$","unassigned_KO", as.character(KO))) %>%
+      mutate (KO_desc = sub("^$","unassigned_KO_desc", as.character(KO_desc))) %>%
+      mutate (KO_pathway = sub("^$","unassigned_KO_pathway", as.character(KO_pathway))) %>%
+      mutate (KOG_id = sub("^$","unassigned_KOG_id", as.character(KOG_id))) %>%
+      mutate (KOG_desc = sub("^$","unassigned_KOG_desc", as.character(KOG_desc))) %>%
+      mutate (KOG_class = sub("^$","unassigned_KOG_class", as.character(KOG_class))) %>%
+      mutate (KOG_group = sub("^$","unassigned_KOG_group", as.character(KOG_group))) %>%
+      mutate (PFams = sub("^$","unassigned_PFams", as.character(PFams))) %>%
+      mutate (PFams_desc = sub("^$","unassigned_PFams_desc", as.character(PFams_desc))) %>%
+      mutate (TIGRFams = sub("^$","unassigned_TIGRFams", as.character(TIGRFams))) %>%
+      mutate (TIGRFams_desc = sub("^$","unassigned_TIGRFams_desc", as.character(TIGRFams_desc))) %>%
+      mutate (best_hit_annotation = sub("^$","unassigned_best_hit_annot", as.character(best_hit_annotation))) %>%
+      mutate (grpnorm_compartment = sub("^$","unassigned_grpnorm_comp", as.character(grpnorm_compartment))) %>%
+      mutate (grpnorm_taxgrp = sub("^$","unassigned_grpnorm_taxgrp", as.character(grpnorm_taxgrp))) %>%
+      mutate (best_tax_string = sub("^$","unassigned_best_tax_string", as.character(best_tax_string))) %>%
+
+#separate the 'best_tax_string' into different taxonomic levels. The warning here is because some taxonomic strings don't go all the way down to species, or some ORFs don't have a taxonomy, so this code fills those unkowns with "NA" or just makes the cells empty. The next chuck of code replaces the "NA" and empty cells with 'unassigned'. 
+      separate(best_tax_string, sep = ";", c("tax_a","tax_b","tax_c","tax_d","tax_e","tax_f","tax_g", "tax_h")) %>% #f
+      
+#some of the taxonmy cells have NA, and others don't so it's important to do the replace_na and the mutate so all empty and NA cells get an 'unassigned_tax' label.       
+      replace_na(list(tax_a = "unassigned_tax")) %>%#i
+      replace_na(list(tax_b = "unassigned_tax"))%>%  
+      replace_na(list(tax_c = "unassigned_tax"))%>%  
+      replace_na(list(tax_d = "unassigned_tax"))%>%  
+      replace_na(list(tax_e = "unassigned_tax"))%>%  
+      replace_na(list(tax_f = "unassigned_tax"))%>%  
+      replace_na(list(tax_g = "unassigned_tax"))%>% 
+      replace_na(list(tax_h = "unassigned_tax"))%>% 
+    
+      # mutate (tax_a = sub("^$","unassigned_tax", as.character(tax_a))) %>% 
+      # mutate (tax_b = sub("^$","unassigned_tax", as.character(tax_b))) %>% 
+      # mutate (tax_c = sub("^$","unassigned_tax", as.character(tax_c))) %>% 
+      # mutate (tax_d = sub("^$","unassigned_tax", as.character(tax_d))) %>% 
+      # mutate (tax_e = sub("^$","unassigned_tax", as.character(tax_e))) %>% 
+      # mutate (tax_f = sub("^$","unassigned_tax", as.character(tax_f))) %>% 
+      # mutate (tax_g = sub("^$","unassigned_tax", as.character(tax_g))) %>% 
+      # mutate (tax_h = sub("^$","unassigned_tax", as.character(tax_h))) %>% 
+    
+      group_by(peptide,n_proteins,abundance) %>% #j #the str_flatten allows selection of separator. this is because many annotations have comas in them, so the script thinks it's more than one annotation    
+      summarise(cluster = toString(cluster), 
+                orf_id = toString(orf_id),
+                kegg_hit = toString(kegg_hit),
+                kegg_desc = str_flatten(kegg_desc, "---"),
+                kegg_pathway = toString(kegg_pathway),
+                KO = toString(KO),
+                KO_desc = str_flatten(KO_desc, "---"),
+                KO_pathway = str_flatten(KO_pathway, "---"),
+                KOG_id = toString(KOG_id),
+                KOG_desc = str_flatten(KOG_desc, "---"),
+                KOG_class = str_flatten(KOG_class, "---"),
+                KOG_group = toString(KOG_group),
+                PFams = str_flatten(PFams, "---"),
+                PFams_desc = str_flatten(PFams_desc, "---"),
+                TIGRFams = str_flatten(TIGRFams, "---"), 
+                TIGRFams_desc = str_flatten(TIGRFams_desc, "---"), 
+                best_hit_annotation = str_flatten(best_hit_annotation, "---"),
+                grpnorm_compartment = toString(grpnorm_compartment),
+                tax_a = toString(tax_a), 
+                tax_b = toString(tax_b),
+                tax_c = toString(tax_c),
+                tax_d = toString(tax_d),
+                tax_e = toString(tax_e), 
+                tax_f = toString(tax_f),
+                tax_g = toString(tax_g),
+                tax_h = toString(tax_h),
+                grpnorm_taxgrp = toString(grpnorm_taxgrp)) %>% 
+                ungroup() %>% 
+
+#find out how many unique annotations / taxonomic group each peptide matches to. For example, if one peptide matches to several ORFs with different annotations, then it will have >1 unique annotations, which means it's an ambiguous peptide. 
+      mutate (uniq_cluster =  lengths (lapply (strsplit(cluster, split = ", "), unique))) %>% 
+      mutate (uniq_kegg_hit =  lengths (lapply (strsplit(kegg_hit, split = ", "), unique))) %>%
+      mutate (uniq_KO =  lengths (lapply (strsplit(KO, split = ", "), unique))) %>% 
+      mutate (uniq_KOG_id =  lengths (lapply (strsplit(KOG_id, split = ", "), unique))) %>% 
+      mutate (uniq_KOG_class =  lengths (lapply (strsplit(KOG_class, split = "---"), unique))) %>% 
+      mutate (uniq_KOG_group =  lengths (lapply (strsplit(KOG_group, split = ", "), unique))) %>% 
+      mutate (uniq_PFams =  lengths (lapply (strsplit(PFams, split = "---"), unique))) %>% 
+      mutate (uniq_TIGRFams =  lengths (lapply (strsplit(TIGRFams, split = "---"), unique))) %>%
+      mutate (uniq_best_hit_annotation =  lengths (lapply (strsplit(best_hit_annotation, split = "---"), unique))) %>%               
+      mutate (uniq_grpnorm_compartment =  lengths (lapply (strsplit(grpnorm_compartment, split = ", "), unique))) %>% 
+      mutate (uniq_a =  lengths (lapply (strsplit(tax_a, split = ", "), unique))) %>% 
+      mutate (uniq_b =  lengths (lapply (strsplit(tax_b, split = ", "), unique))) %>%
+      mutate (uniq_c =  lengths (lapply (strsplit(tax_c, split = ", "), unique))) %>%
+      mutate (uniq_d =  lengths (lapply (strsplit(tax_d, split = ", "), unique))) %>%
+      mutate (uniq_e =  lengths (lapply (strsplit(tax_e, split = ", "), unique))) %>%
+      mutate (uniq_f =  lengths (lapply (strsplit(tax_f, split = ", "), unique))) %>%
+      mutate (uniq_g =  lengths (lapply (strsplit(tax_g, split = ", "), unique))) %>%
+      mutate (uniq_h =  lengths (lapply (strsplit(tax_h, split = ", "), unique))) %>%
+      mutate (uniq_grpnorm_taxgrp =  lengths (lapply (strsplit(grpnorm_taxgrp, split = ", "), unique))) %>%
+    
+#if a peptide matches with more than one cluster, name is as ambiguous, if it matches one cluster, annotate as such. repeat for other areas
+     
+    mutate(final_cluster = ifelse (uniq_cluster !=1, "ambiguous_cluster" ,
+                                 #word(cluster,1, sep = ","))) %>%
+     
+
+
+
+x <- read.csv ("test_test_test211216_1037_097_LJ_S02_51.csv")
+     
+      mutate(final_kegg_hit = ifelse (uniq_kegg_hit !=1, "ambiguous_kegg_hit" ,
+                                 word(kegg_hit,1, sep = ","))) %>%
+    
+      mutate(final_KO = ifelse (uniq_KO !=1, "ambiguous_KO" ,
+                                 word(KO,1,sep = ","))) %>%
+   
+      mutate(final_KOG_id = ifelse (uniq_KOG_id !=1, "ambiguous_KOG_id" ,
+                                 word(KOG_id,1,sep = ","))) %>%
+
+      mutate(final_KOG_class = ifelse (uniq_KOG_class !=1, "ambiguous_KOG_class" ,
+                                 word(KOG_class,1,sep = "---"))) %>%
+        
+      mutate(final_KOG_group = ifelse (uniq_KOG_group !=1, "ambiguous_KOG_group" ,
+                                 word(KOG_group,1,sep = ","))) %>%
+     
+        #since there could be are multiple words even if peptide matches to one PFAM for example, I want to make sure the entire unique string is captured with the 'sep = "---"  '
+      mutate(final_PFams = ifelse (uniq_PFams !=1, "ambiguous_PFams" ,
+                                 word(PFams,1, sep = "---"))) %>%
+    
+      mutate(final_TIGRFams = ifelse (uniq_TIGRFams !=1, "ambiguous_TIGRFams" ,
+                                 word(TIGRFams,1, sep = "---"))) %>%
+    
+      mutate(final_best_hit_annotation = ifelse (uniq_best_hit_annotation !=1, "ambiguous_best_hit_annotation" ,
+                                 word(best_hit_annotation,1, sep = "---"))) %>%
+    
+      mutate(final_grpnorm_compartment = ifelse (uniq_grpnorm_compartment !=1, "ambiguous_grpnorm_compartment" ,
+                                 word(grpnorm_compartment,1,sep = ","))) %>%
+    
+      mutate(final_grpnorm_taxgrp = ifelse (uniq_grpnorm_taxgrp !=1, "ambiguous_grpnorm_taxgrp" ,
+                                 word(grpnorm_taxgrp,1, sep = ","))) %>%
+    
+      mutate(final_taxon_id = ifelse (uniq_g !=1 & uniq_f ==1, paste0(tax_f),
+                          ifelse (uniq_f !=1 & uniq_e ==1, paste0(tax_e),
+                          ifelse (uniq_e !=1 & uniq_d ==1, paste0(tax_d),  
+                          ifelse (uniq_d !=1 & uniq_c ==1, paste0(tax_c), 
+                          ifelse (uniq_c !=1 & uniq_b ==1, paste0(tax_c),
+                          ifelse (uniq_b !=1 & uniq_a ==1, paste0(tax_a),
+                          ifelse (uniq_a !=1, "ambiguous_domain", 
+                              tax_g)))))))) %>%
+      mutate (final_taxon_id =  word(final_taxon_id, 1, sep = ",")) %>% 
+
+#for now, this uses zero-tolerance for assigning annotation and taxa. For example, if a cluster has 30 matched peptides to it, they all have to be from the same tax. group for the cluster to be assigned to that group. If 29 were assigned to one group, and 1 to another, then it will be 'ambiguous'. I might change this later. 
+       
+      mutate (taxon_function = paste(final_cluster, "---",final_kegg_hit, "---",final_KO, "---", final_KOG_id, "---", final_KOG_class, "---", final_KOG_group, "---",final_PFams, "---",final_TIGRFams, "---",final_best_hit_annotation,"---", final_grpnorm_compartment, "---", final_grpnorm_taxgrp,"---", final_taxon_id))  %>%
+  
+    
+     #mutate (normalized_abundance = abundance /sum(abundance) *1000000 ) %>% #o
+
+     group_by(peptide,taxon_function, ) %>% #j 
+     summarise(non_norm_abundance = sum(abundance),
+               orf_id = toString(orf_id),) %>%
+     ungroup() %>%
+      
+     write.csv(paste0("PS117_non_normalized_tax-annotation_20220401_", x), row.names = FALSE)
+        })
+
+#mutate (normalized_abundance = abundance /sum(abundance) *1000000 ) %>% #o
+
+#b - delete all the peptides with matches to CRAP database. Some peptides match to CRAP and actual sample, those will need to go as well. The normalization is done using only the final list of peptides (i.e. not including CRAP and other stuff)  
+#c - peptides match to more than one ORF. This sparates out each of the matches into a row
+#d - remove the 'XXX_' from the ORFs that match to both database and decoy (we will still use those).
+#e - add taxomonic ID and functional annotation to each peptide. Some peptides with match to several ORFs with different tax. IDs, so they'll have more than one tax. ID. 
+#f - separates the taxonomy string into different taxonomic levels. The warning here is because some taxonomic strings don't go all the way down to species, so this code filles those unkowns with "NA"
+#g - gets rids of unnecessary columns and selects taxonomic resolution that I want
+#h - rename the column with the taxonomic level with to make it more flexible to use incase I want to try more than one taxonomic resolution
+#i - change all NAs to 'unkown', incase we are at a resolution where there are unkowns.
+#j - puts things back into a list format
+#k - adds a new column 'length' and shows the number of unique taxonomic groups that match to a peptide. So 1 means all the matches for that peptide came from one taxonomic group. 
+#l - gets the peptides that matched to only one taxonomic group (note the ^and$)
+#m - extracts the first word from the list (so this is the consensus taxa)
+#n - some words end with comma and some dont. this just gets rid of the comma
+#o - normalizes each row by the total sum and multiplies by a million 
+```
+
+
+
+
+
+
+
+
+
+
+looking at ribosomes
+might need to combine all functional annotations into one row for this
+```{r}
+ribosome_compartment <- filter (allproteomicsdata, grepl ("ribosomal", grpnorm_compartment))
+
+ribosome <- filter (allproteomicsdata, grepl ("ribosom", best_hit_annotation))
+
+```
+
+
+
+plotting functions for all figures 
+```{r}
+taxon_compartment_temp <- function (taxon, proteincompartment, yaxislabel) {
+ribosometaxon <- filter (norm_proteomicsdata, grepl(taxon, F))
+
+ribosometaxon <- ribosometaxon [c(12, 23 ,24:53)]
+
+ribosometaxon2 <- ribosometaxon %>% mutate_at (3:32, funs (((. / sum(.)))))
+
+ribosometaxon3 <- melt(ribosometaxon2, id.vars=c("grpnorm_compartment", "F")) %>%
+            rename(treatment = variable) %>%
+            rename(norm_abundance = value )
+
+ribosometaxon_aggregated <- aggregate(ribosometaxon3$norm_abundance, by=list(Category=ribosometaxon3$grpnorm_compartment, ribosometaxon3$treatment), FUN=sum) %>%
+                  rename(norm_abundance = x) %>%
+                  rename(treatment = Group.2) %>%
+                  rename(compartment = Category) %>%
+          separate(treatment, into=c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"), sep = "_")
+
+ribosometaxon_aggregated$fulltreatment <- paste (ribosometaxon_aggregated$temperature, ribosometaxon_aggregated$iron , sep ='_')
+ribosometaxon_aggregated$fulltreatment <- ifelse (ribosometaxon_aggregated$fulltreatment ==  "LT_noFe", "LT_noFe", 
+                            ifelse (ribosometaxon_aggregated$fulltreatment ==  "LT_Fe", "LT_Fe",
+                            ifelse (ribosometaxon_aggregated$fulltreatment ==  "HT_noFe", "HT_noFe", 
+                            ifelse (ribosometaxon_aggregated$fulltreatment ==  "HT_Fe", "HT_Fe",
+                            "T0"))))
+
+#ribosometaxon_aggregated <- filter (ribosometaxon_aggregated, !grepl("T0", fulltreatment))
+
+
+ribosometaxon_aggregated$temperature <- ifelse (ribosometaxon_aggregated$bioassay ==  "BA1" & ribosometaxon_aggregated$temperature_treatment ==  "T0",  -0.3, 
+                         ifelse (ribosometaxon_aggregated$bioassay ==  "BA1" & ribosometaxon_aggregated$temperature_treatment ==  "HT",  1.7, 
+                         ifelse (ribosometaxon_aggregated$bioassay ==  "BA1" & ribosometaxon_aggregated$temperature_treatment ==  "LT",  -0.3, 
+                         ifelse (ribosometaxon_aggregated$bioassay ==  "BA2" & ribosometaxon_aggregated$temperature_treatment ==  "T0",  -1.4, 
+                         ifelse (ribosometaxon_aggregated$bioassay ==  "BA2" & ribosometaxon_aggregated$temperature_treatment ==  "HT",  1, 
+                         ifelse (ribosometaxon_aggregated$bioassay ==  "BA2" & ribosometaxon_aggregated$temperature_treatment ==  "LT",  -1, 
+                         "Other"))))))
+
+ribosometaxon_aggregated$fulltreatments <- paste (ribosometaxon_aggregated$bioassay, ribosometaxon_aggregated$iron_treatment, sep = "_")
+
+
+ggplot(filter(ribosometaxon_aggregated, grepl(proteincompartment,compartment)) , aes(
+    x = as.numeric(temperature),
+    y = norm_abundance,
+       shape = fulltreatments, 
+    color = fulltreatments))+
+  
+   #geom_point(size = 4, alpha=0.65, stroke = 1.5)+
+  scale_color_manual(name= "Bioassay",
+                breaks = c("BA1_T0", "BA1_Fe", "BA1_noFe", "BA2_T0", "BA2_Fe", "BA2_noFe"),
+                labels = c("BA1_T0", "BA1_Fe", "BA1_noFe", "BA2_T0", "BA2_Fe", "BA2_noFe"),
+               values = c('darkgreen', "black","black", "darkgreen", "black","black")) +
+   stat_summary(fun = mean, geom = "point", show.legend = T, size = 4, stroke = 1.5, alpha = 0.65)+
+   stat_summary(fun.data =  mean_se, geom = "errorbar", size = 1, width = 0.1)+
+  scale_shape_manual(name = "Bioassay",
+                       breaks = c("BA1_T0", "BA1_Fe", "BA1_noFe", "BA2_T0", "BA2_Fe", "BA2_noFe"),
+                       labels = c("BA1_T0", "BA1_Fe", "BA1_noFe", "BA2_T0", "BA2_Fe", "BA2_noFe"),
+                       values = c(1, 19, 1, 2, 17, 2)) +
+    ylab (substitute(yaxislabel)) +
+    xlab (expression("Temperature °C")) +
+    theme_bw()+
+    theme(axis.text.x=element_text(face = "bold", size = 12, color = "black", vjust = 0.5, hjust = 0.5),
+          axis.title.x=element_text(size=16, color = "black"),
+          axis.title.y=element_text(size=16, color = "black"),
+          axis.text.y=element_text(face = "bold", size = 12, color = "black"),
+          legend.position = "none",
+          legend.title = element_text(size = 11, face = "bold"),
+          legend.text = element_text(size = 10), 
+          strip.text = element_text(size = 11, face = "bold"))
+ 
+}
+
+fig3_metals <- function(yaxis, yaxislabel) {
+  ggplot((filter(alldata, grepl("8", daycount))) , aes(
+  y = ({{yaxis}}/(1000*PON_uM)),
+    #y = ({{yaxis}}/(POP_nM)),
+  x = factor(iron_treatment, level = Fe_order),
+  color = temperature_treatment, 
+  shape = iron_treatment))+
+  facet_wrap(~bioassay)+
+   scale_color_manual(name="Temperature",
+                      breaks = c("LT","HT"),
+                      values = c( 'black','darkorange2', "black")) +
+    scale_shape_manual(name = "Iron",
+                       breaks = c("Fe","noFe", "T0"), #this removes the T0 from the legend
+                       labels = c("Fe", "noFe", "T0"),
+                       values = c(19,1,5)) +
+  stat_summary(fun = mean, geom = "point", size = 4, stroke = 1.5, alpha = 0.65)+
+  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F,  size = 1, width = 0.1)+
+  theme_bw() + 
+  ylab (substitute(bold(yaxislabel))) + 
+  xlab (expression ("")) +
+  theme(axis.text.x=element_text(face = "bold", size = 10, color = "black"),
+        axis.title.y=element_text(face = "bold", size=12, color = "black"), 
+        axis.text.y=element_text(size = 10, color = "black"),
+        strip.background =element_rect(fill = "white"),
+        strip.text.x = element_text(size = 11, face = "bold"),
+        #plot.margin = margin(0.3, 0, 0, -0.5, "cm"), #trbl
+
+        #legend.position = c(0.9,0.88),
+        legend.position = "none",
+        legend.text = element_text(size = 10))
+}
+
+protein_clusters <- function (taxonomic_groups, clusternames, protein, shape) {
+clusters <- filter (norm_proteomicsdata, grepl(taxonomic_groups, F)) 
+clusters <- clusters [c(12, 3, 24:53)]
+clusters2 <- clusters %>% mutate_at (3:32, funs (((. / sum(.)))))
+clusters3 <- filter(clusters2, grepl("clust_2934|^clust_891$|^clust_332$|^clust_808$|^clust_55$|^clust_4660|^clust_1820$|^clust_1154$|^clust_343$|^clust_1814$|^clust_534$|^clust_5562$|^clust_417$|^clust_411$|clust_2501|clust_6573|^clust_1525$|clust_1552|^clust_231$|^clust_1906$|^clust_812$|^clust_16168$|^clust_10646$|^clust_1372$|^clust_320$|^clust_6019$|^clust_35$|^clust_1830$|^clust_655$|^clust_2490$|^clust_1156$|^clust_2244$", cluster)) 
+
+
+clusters3 <- melt(clusters3, id.vars=c("cluster", "F")) %>%
+            rename(treatment = variable) %>%
+            rename(norm_abundance = value )
+
+
+clusters3_aggregated <- aggregate(clusters3$norm_abundance, by=list(Category=clusters3$cluster, clusters3$treatment), FUN=sum) %>%
+                  rename(norm_abundance = x) %>%
+                  rename(treatment = Group.2) %>%
+                  rename(cluster = Category) %>% 
+                    separate(treatment, into=c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"), sep = "_")
+
+clusters3_aggregated$fulltreatment <- paste (clusters3_aggregated$temperature, clusters3_aggregated$iron , sep ='_')
+clusters3_aggregated$fulltreatment <- ifelse (clusters3_aggregated$fulltreatment ==  "LT_noFe", "LT_noFe", 
+                            ifelse (clusters3_aggregated$fulltreatment ==  "LT_Fe", "LT_Fe",
+                            ifelse (clusters3_aggregated$fulltreatment ==  "HT_noFe", "HT_noFe", 
+                            ifelse (clusters3_aggregated$fulltreatment ==  "HT_Fe", "HT_Fe",
+                            "T0"))))
+
+clusters4_aggregated <- filter (clusters3_aggregated, !grepl("T0", iron_treatment)) 
+clusters4_aggregated$zscore_BA <- ave(clusters4_aggregated$norm_abundance, list(clusters4_aggregated$cluster, clusters4_aggregated$bioassay), FUN=scale) #z-score for each bioassay separately
+
+clusters4_aggregated$clust_annotation <-   ifelse (clusters4_aggregated$cluster ==  "clust_343", "ISIP-2A", 
+                   ifelse (clusters4_aggregated$cluster ==  "clust_411", "Nitrate reductase", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_534", "Flavodoxin", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1154", "ISIP-3", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1814", "ISIP-1", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1820", "Plastocyanin", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_4660", "Flavodoxin-1", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_5562", "Cu-Zn SOD", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_55", "PSI", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_808", "Ferredoxin", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_2934", "Multicopper Oxidase", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_891", "Glutamate Synthase", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_332", "Chl A-B binding protein", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_417", "AMT", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_2501", "Fe-Mn SOD", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1525", "SLC-4",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_231", "Rhodopsin",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1906", "Mn-cluster",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_812", "ZIP",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_16168", "TonB",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_10646", "TonB_2",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1372", "Urea transporter",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_320", "Urea carboxylase",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_6019", "Ornithine cyclodeaminase",    
+                            ifelse (clusters4_aggregated$cluster ==  "clust_655", "CA_clust_655",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_6573", "CA_clust_6573",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_35", "Ribosome recycling",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_2490", "Rubisco",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_2244", "PEPC",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1830", "Acireductone dioxygenase Fe containing",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_15664", "Cation Efflux protein",
+                                    clusters4_aggregated$cluster 
+                    )))))))))))))))))))))))))))))))
+
+
+clusters4_aggregated$zscore_BAnew <- ifelse (clusters4_aggregated$norm_abundance ==  "0", NA, 
+                                             clusters4_aggregated$zscore_BA) #this is for z-score for each bioassay separately
+
+proteinclusterorder <- c("Plastocyanin", 
+                         "Multi-Cu Oxidase",  
+                         "Cyt Oxidase",
+                         "Cu-Zn SOD - centric",  
+                         "ZIP", 
+                         "RNA polymerase",
+                         "Fe-Mn SOD", 
+                         "Mn-cluster",
+                         "CDCA - centric", 
+                         "CDCA - pennate", 
+                         "Urea transporter",
+                         "Urea Carboxylase")
+
+ggplot((filter(clusters4_aggregated, grepl(clusternames, clust_annotation))), aes(x = factor(iron_treatment, level = Fe_order),
+  y = zscore_BAnew, 
+  #shape   = clust_annotation, 
+  shape = iron_treatment,
+  color = temperature_treatment))+ 
+  stat_summary(fun = mean, geom = "point", size = 4, stroke = 1.5, alpha = 0.65, position= position_dodge(width=0.3))+
+  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F,  size = 1, width = 0.1, position= position_dodge(width=0.3))+
+  theme_bw() +
+  scale_color_manual(name="",  
+
+                     breaks = c("LT","HT"),
+                     values = c( 'black','darkorange2', "black")) +
+   scale_shape_manual(name = "",
+                       breaks = c("Fe","noFe", "T0"), #this removes the T0 from the legend
+                       labels = c("Fe", "noFe", "T0"),
+                       values = c(19,1,5)) +
+  
+      # breaks = protein,
+                    #values =shape) +
+
+  #scale_shape_discrete(name = "")+
+    facet_wrap(~bioassay)+
+ labs (x = "", y = "Z-Score")+# title = {{plot_title}})+
+    theme(axis.text.x=element_text(face = "bold", size = 10, color = "black"),
+        axis.title.y=element_text(face = "bold", size=12, color = "black"), 
+        axis.text.y=element_text(size = 10, color = "black"),
+        strip.background =element_rect(fill = "white"),
+        strip.text.x = element_text(size = 11, face = "bold"),
+        legend.text = element_text(size = 9, face = "bold"),
+        legend.margin = margin(0,0,0,0, "cm"),
+        title = element_text(size = 8, face = "bold"),
+        legend.position = "top", legend.justification='left') + 
+  guides(shape = guide_legend(override.aes = list(size=4)))
+        #plot.margin = margin(0.3, 0, 0, -0.5, "cm")) #trbl
+}
+
+#need to work on the order of how things are presented
+protein_clusters_hm <- function (taxonomic_groups, clusternames, bioassay_name) {
+clusters <- filter (norm_proteomicsdata, grepl(taxonomic_groups, F)) 
+clusters <- clusters [c(12, 3, 24:53)]
+clusters2 <- clusters %>% mutate_at (3:32, funs (((. / sum(.)))))
+clusters3 <- filter(clusters2, grepl("clust_2934|^clust_891$|^clust_332$|^clust_808$|^clust_55$|^clust_4660|^clust_1820$|^clust_1154$|^clust_343$|^clust_1814$|^clust_534$|^clust_5562$|^clust_417$|^clust_411$|clust_2501|clust_6573|^clust_1525$|clust_1552|^clust_231$|^clust_1906$|^clust_812$|^clust_16168$|^clust_10646$|^clust_1372$|^clust_320$|^clust_6019$|^clust_35$|^clust_1830$|^clust_655$|^clust_2490$|^clust_1156$|^clust_2244$", cluster)) 
+
+clusters3 <- melt(clusters3, id.vars=c("cluster", "F")) %>%
+            rename(treatment = variable) %>%
+            rename(norm_abundance = value )
+
+
+clusters3_aggregated <- aggregate(clusters3$norm_abundance, by=list(Category=clusters3$cluster, clusters3$treatment), FUN=sum) %>%
+                  rename(norm_abundance = x) %>%
+                  rename(treatment = Group.2) %>%
+                  rename(cluster = Category) %>% 
+                    separate(treatment, into=c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"), sep = "_")
+
+clusters3_aggregated$tempFerep <- paste (clusters3_aggregated$temperature_treatment, clusters3_aggregated$iron_treatment,clusters3_aggregated$replicate,  sep ='_') #add clusters3_aggregated$replicate if reps needed for heatmap
+
+clusters4_aggregated <- filter (clusters3_aggregated, !grepl("T0", iron_treatment)) 
+clusters4_aggregated$zscore_BA <- ave(clusters4_aggregated$norm_abundance, list(clusters4_aggregated$cluster, clusters4_aggregated$bioassay), FUN=scale) #z-score for each bioassay separately
+
+clusters4_aggregated$clust_annotation <-   ifelse (clusters4_aggregated$cluster ==  "clust_343", "ISIP-2A", 
+                   ifelse (clusters4_aggregated$cluster ==  "clust_411", "Nitrate reductase", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_534", "Flavodoxin", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1154", "ISIP-3", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1814", "ISIP-1", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1820", "Plastocyanin", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_4660", "Flavodoxin-1", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_5562", "Cu-Zn SOD", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_55", "PSI", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_808", "Ferredoxin", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_2934", "Multicopper Oxidase", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_891", "Glutamate Synthase", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_332", "Chl A-B binding protein", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_417", "AMT", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_2501", "Fe-Mn SOD", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1525", "SLC-4",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_231", "Rhodopsin",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1906", "Mn-cluster",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_812", "ZIP",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_16168", "TonB",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_10646", "TonB_2",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1372", "Urea transporter",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_320", "Urea carboxylase",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_6019", "Ornithine cyclodeaminase",    
+                            ifelse (clusters4_aggregated$cluster ==  "clust_655", "CA_clust_655",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_6573", "CA_clust_6573", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_35", "Ribosome recycling",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_2490", "Rubisco",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_2244", "PEPC",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1830", "Acireductone dioxygenase Fe containing",
+                                    clusters4_aggregated$cluster 
+                    ))))))))))))))))))))))))))))))
+
+
+clusters4_aggregated$zscore_BAnew <- ifelse (clusters4_aggregated$norm_abundance ==  "0", NA, 
+                                             clusters4_aggregated$zscore_BA) #this is for z-score for each bioassay separately
+
+proteinclusterorder <- c("ISIP-3",
+                         "ISIP-2A",
+                         "ISIP-1",
+                         "Rhodopsin",
+                         "Flavodoxin",
+                         "Plastocyanin", 
+                         "Flavodoxin-1",
+                         "Cu-Zn SOD", 
+                         "PSI",
+                         "Ferredoxin", 
+                         "Nitrate reductase", 
+                        "Multicopper Oxidase",
+                        "Glutamate Synthase", 
+                        "Chl A-B binding protein", 
+                        "AMT", 
+                        "Fe-Mn SOD", 
+                        "Cd Carbonic Anhydrase", 
+                        "SLC-4",
+                       
+                        "Mn-cluster",
+                        "ZIP",
+                        "TonB",
+                        "TonB_2",
+                        "Urea transporter",
+                        "Urea carboxylase",
+                        "Ornithine cyclodeaminase",
+                        "CA",
+                        "Ribosome recycling",
+                        "Rubisco",
+                        "PEPC",
+                        "Acireductone dioxygenase Fe containing")
+
+
+clusters4_aggregated <- filter(clusters4_aggregated, grepl (bioassay_name, bioassay))
+
+ggplot((filter(clusters4_aggregated, grepl(clusternames, clust_annotation))),
+               aes(#x = factor(fulltreatment, level = treatment_orders),
+                 x = factor(tempFerep, level = tempFerep_order),
+  y = factor(clust_annotation, level = proteinclusterorder),
+  fill = zscore_BAnew)) +
+  geom_tile(color = "black", lwd = 0.7)+
+  scale_fill_gradientn(colors = c("deepskyblue2","white","darkred"),
+         values = rescale(c(-1.6, 0,3)),
+         guide = "colorbar", limits=c(-1.6, 3),
+         name = "Row Z-score")+
+  scale_y_discrete(position = "right")+
+labs (x = "", y = "")+ 
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_text(face = "bold", size = 11, color = "black"),
+        plot.title = element_text(face = "bold", size=10, vjust = 0, hjust = 0.02, margin = margin(0,0,-5,0)),
+        axis.ticks  = element_blank()) +
+ #facet_grid(.~bioassay+temperature_treatment+iron_treatment, scales = "free_x") +
+      facet_nested(~fct_rev(temperature_treatment)+ ~fct_rev(iron_treatment), scales = "free_x") +
+  theme(strip.background=element_rect(color=NA, fill=NA),
+        #strip.background =element_rect(fill="white"),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        strip.text = element_text(size = 13,  face = "bold"),
+        panel.spacing=unit(c(0.5),"lines"), 
+        # strip.text = element_blank()
+        )+
+  theme(legend.position = "none",
+               legend.box.margin=margin(l=-10))
+}
+
+protein_clusters_hm_means <- function (taxonomic_groups, clusternames, bioassay_name) {
+clusters <- filter (norm_proteomicsdata, grepl(taxonomic_groups, F)) 
+clusters <- clusters [c(12, 3, 24:53)]
+clusters2 <- clusters %>% mutate_at (3:32, funs (((. / sum(.)))))
+clusters3 <- filter(clusters2, grepl("clust_2934|^clust_891$|^clust_332$|^clust_808$|^clust_55$|^clust_4660|^clust_1820$|^clust_1154$|^clust_343$|^clust_1814$|^clust_534$|^clust_5562$|^clust_417$|^clust_411$|clust_2501|clust_6573|^clust_1525$|clust_1552|^clust_231$|^clust_1906$|^clust_812$|^clust_16168$|^clust_10646$|^clust_1372$|^clust_320$|^clust_6019$|^clust_35$|^clust_1830$|^clust_655$|^clust_2490$|^clust_1156$|^clust_2244$", cluster)) 
+
+clusters3 <- melt(clusters3, id.vars=c("cluster", "F")) %>%
+            rename(treatment = variable) %>%
+            rename(norm_abundance = value )
+
+clusters3_aggregated <- aggregate(clusters3$norm_abundance, by=list(Category=clusters3$cluster, clusters3$treatment), FUN=sum) %>%
+                  rename(norm_abundance = x) %>%
+                  rename(treatment = Group.2) %>%
+                  rename(cluster = Category) %>% 
+                  separate(treatment, into=c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"), sep = "_")
+
+clusters3_aggregated$tempFerep <- paste (clusters3_aggregated$temperature_treatment, clusters3_aggregated$iron_treatment,  sep ='_') #add clusters3_aggregated$replicate if reps needed for heatmap
+
+clusters4_aggregated <- filter (clusters3_aggregated, !grepl("T0", iron_treatment)) 
+clusters4_aggregated$zscore_BA <- ave(clusters4_aggregated$norm_abundance, list(clusters4_aggregated$cluster, clusters4_aggregated$bioassay), FUN=scale) #z-score for each bioassay separately
+
+#if we want to plot the average
+clusters4_aggregated <- aggregate(list(zscore_BA =clusters4_aggregated$zscore_BA, norm_abundance = clusters4_aggregated$norm_abundance), by=list( clusters4_aggregated$tempFerep, clusters4_aggregated$bioassay, clusters4_aggregated$cluster), FUN=mean) %>%
+  rename (tempFerep = Group.1,
+          bioassay = Group.2,
+          cluster = Group.3) %>%
+separate(tempFerep, into=c("temperature_treatment", "iron_treatment"), sep = "_")
+
+
+clusters4_aggregated$tempFe <- paste (clusters4_aggregated$temperature_treatment, clusters4_aggregated$iron_treatment,  sep ='_') 
+
+clusters4_aggregated$clust_annotation <-   ifelse (clusters4_aggregated$cluster ==  "clust_343", "ISIP-2A", 
+                   ifelse (clusters4_aggregated$cluster ==  "clust_411", "Nitrate reductase", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_534", "Flavodoxin", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1154", "ISIP-3", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1814", "ISIP-1", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1820", "Plastocyanin", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_4660", "Flavodoxin-1", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_5562", "Cu-Zn SOD", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_55", "PSI", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_808", "Ferredoxin", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_2934", "Multicopper Oxidase", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_891", "Glutamate Synthase", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_332", "Chl A-B binding protein", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_417", "AMT", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_2501", "Fe-Mn SOD", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1525", "SLC-4",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_231", "Rhodopsin",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1906", "Mn-cluster",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_812", "ZIP",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_16168", "TonB",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_10646", "TonB_2",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1372", "Urea transporter",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_320", "Urea carboxylase",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_6019", "Ornithine cyclodeaminase",    
+                            ifelse (clusters4_aggregated$cluster ==  "clust_655", "CA_clust_655",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_6573", "CA_clust_6573", 
+                            ifelse (clusters4_aggregated$cluster ==  "clust_35", "Ribosome recycling",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_2490", "Rubisco",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_2244", "PEPC",
+                            ifelse (clusters4_aggregated$cluster ==  "clust_1830", "Acireductone dioxygenase Fe containing",
+                                    clusters4_aggregated$cluster 
+                    ))))))))))))))))))))))))))))))
+
+
+clusters4_aggregated$zscore_BAnew <- ifelse (clusters4_aggregated$norm_abundance ==  "0", NA, 
+                                             clusters4_aggregated$zscore_BA) #this is for z-score for each bioassay separately
+
+proteinclusterorder <- c("ISIP-3",
+                         "ISIP-2A",
+                         "ISIP-1",
+                         "Rhodopsin",
+                         "Flavodoxin",
+                         "Plastocyanin", 
+                         "Flavodoxin-1",
+                         "Cu-Zn SOD", 
+                         "PSI",
+                         "Ferredoxin", 
+                         "Nitrate reductase", 
+                        "Multicopper Oxidase",
+                        "Glutamate Synthase", 
+                        "Chl A-B binding protein", 
+                        "AMT", 
+                        "Fe-Mn SOD", 
+                        "Cd Carbonic Anhydrase", 
+                        "SLC-4",
+                       
+                        "Mn-cluster",
+                        "ZIP",
+                        "TonB",
+                        "TonB_2",
+                        "Urea transporter",
+                        "Urea carboxylase",
+                        "Ornithine cyclodeaminase",
+                        "CA",
+                        "Ribosome recycling",
+                        "Rubisco",
+                        "PEPC",
+                        "Acireductone dioxygenase Fe containing")
+
+
+clusters4_aggregated <- filter(clusters4_aggregated, grepl (bioassay_name, bioassay))
+
+ggplot((filter(clusters4_aggregated, grepl(clusternames, clust_annotation))),
+               aes(#x = factor(fulltreatment, level = treatment_orders),
+                 x = factor(tempFe, level = tempFe_order),
+                 #x = tempFerep,
+  y = factor(clust_annotation, level = proteinclusterorder),
+  fill = zscore_BAnew)) +
+  geom_tile(color = "black", lwd = 0.7)+
+  scale_fill_gradientn(colors = c("deepskyblue2","white","darkred"),
+         values = rescale(c(-1.6, 0,3)),
+         guide = "colorbar", limits=c(-1.6, 3),
+         name = "Row Z-score")+
+  scale_y_discrete(position = "right")+
+labs (x = "", y = "")+ 
+  theme(#axis.text.x=element_blank(),
+        axis.text.y=element_text(face = "bold", size = 11, color = "black"),
+        plot.title = element_text(face = "bold", size=10, vjust = 0, hjust = 0.02, margin = margin(0,0,-5,0)),
+        axis.ticks  = element_blank()) +
+ facet_grid(~bioassay, scales = "free_x") +
+     # facet_nested(~fct_rev(temperature_treatment)+ ~fct_rev(iron_treatment), scales = "free_x") +
+  theme(strip.background=element_rect(color=NA, fill=NA),
+        #strip.background =element_rect(fill="white"),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        strip.text = element_text(size = 13,  face = "bold"),
+        panel.spacing=unit(c(0.5),"lines"), 
+        # strip.text = element_blank()
+        )+
+  theme(legend.position = "none",
+               legend.box.margin=margin(l=-10))
+}
+
+
+
+alldata$bioassayFe <- paste (alldata$bioassay, alldata$iron_treatment, sep = "_")
+
+alldata$tempFe <- paste (alldata$temperature_treatment, alldata$iron_treatment, sep = "_") 
+
+Fe_order <- c('T0', 'noFe', 'Fe')
+tempFe_order <- c('T0', 'LT_noFe', 'LT_Fe', 'HT_noFe', 'HT_Fe')
+tempFerep_order <- c('LT_noFe_A, ','LT_noFe_B', 'LT_noFe_C', 
+                     'LT_Fe_A',  'LT_Fe_B',  'LT_Fe_C',
+                     'HT_noFe_A', 'HT_noFe_B', 'HT_noFe_C', 
+                     'HT_Fe_A', 'HT_Fe_B', 'HT_Fe_C')
+
+```
+
