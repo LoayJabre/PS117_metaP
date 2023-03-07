@@ -1,25 +1,36 @@
-This script takes the final database searching pipeline output (.cvs files), and assigns a taxonomic group and a functional annotation to each peptide using the database's complimentary annotation file. It does not assign taxonomic/functional annotation to any peptide that matches with more than one taxonomic group (I might tackle razor peptides, or peptides that match to more than one taxonomy at a later point). 
-It also aggregates taxonomies based on the lowest taxonomic resolution. e.g. if a peptide matches both centric and pennate diatoms, it will classify it as "unknown_Bacillariophyta", if that taxonomic classification is ambiguous, it will move up until it reaches the domain - if domains are ambiguous it will classify is 'ambiguous domain' -- all 'unknown' classification are peptides that matched to NA annotation. 
+Last edited: 2023-03-07
+Loay Jabre 
 
-Load necessary packages
+This script takes the final database searching pipeline output (.cvs files), and assigns a taxonomic group and a functional annotation to each peptide using the database's complimentary annotation file. 
+
+It also aggregates taxonomies based on the lowest taxonomic resolution. 
+e.g. if a peptide matches both centric and pennate diatoms, it will classify it as "unknown_Bacillariophyta", if that taxonomic classification is ambiguous, it will move up until it reaches the domain - if domains are ambiguous it will classify is 'ambiguous domain' -- all 'unknown' classification are peptides that matched to NA annotation. 
+
+It does not assign final taxonomic/functional annotation to any peptide that matches with more than one taxonomic group/function (I might tackle razor peptides, or peptides that match to more than one taxonomy at a later point). 
+However, it keeps all the taxonomy and function annotations it matches to. 
+
+#Step I: Load necessary packages
+QC: yes
 ```{r}
+setwd("D:/School/PhD/PS117/data/open-MS_output/")
+
 library(dplyr)
-library(ggplot2)
-library(magrittr)
 library(reshape2)
 library(tidyr)
-library(plotly)
 library(tidyverse)
-library(cowplot)
 library(stringr)
-library(cowplot)
-library(ggpubr)
 library(data.table)
+
+#plots
+library(ggplot2)
+library(plotly)
 library(gplots)
-setwd("D:/School/PhD/PS117/data/open-MS_output/")
+library(ggpubr)
 ```
 
-sample name map - this is to convert the sample numbers used on the mass spec to treatments and replicates etc.
+#Step II: Make a sample name map  
+QC: yes
+- This is to convert the sample numbers used on the mass spec to meaningful names with treatments, replicates etc.
 ```{r}
 ##this name map is specific to PS117 samples, but can be adapted for any sample
 sample_namenumber_map <- c ("S01" = "BA1_T0_T0_T0_A",
@@ -55,7 +66,8 @@ sample_namenumber_map <- c ("S01" = "BA1_T0_T0_T0_A",
                             )
 ```
 
-#Step 1 - last updated: 2023-02-27
+#Step 1 - last updated: 2023-03-07
+QC: yes
 - Takes .csv files from the DB-searching pipeline, remove unnecessary columns, and combine into one dataframe for processing 
 ```{r}
 filelist <- list.files(pattern = ".csv") #create a list of all files ending with .csv
@@ -65,7 +77,7 @@ lapply(filelist, function(x) {
       select(1,2,3,5) %>% #read only columns of interest
       rename(orf_id = protein) %>% #change name of 'protein' column to 'orf_id' for consistency with annotation file
       filter(!grepl("sp", orf_id)) %>% #remove any peptides that matche with CRAP database 
-      write.csv(paste0("cleaned_openms_output_20230203_", x), row.names = FALSE) #re-write a new 'cleaned up' .csv file. This keeps original .csv files  
+      write.csv(paste0("cleaned_openms_output_20230203_", x), row.names = FALSE) #re-write a new 'cleaned up' .csv file. This keeps original .csv 
         })
 
 ##change the abundance column name to include filename -this way we know which sample came from where when we combine all the files
@@ -78,18 +90,19 @@ all_files <- lapply(setNames(nm=filelist_cleaned), function(fn) {
   colnames(dat)[ind] <- paste0(tools::file_path_sans_ext(basename(fn)), "")}
   dat
   })
+
 Map (write.csv, all_files, names(all_files), row.names=FALSE)
 
 ##combine all the injections into one dataframe
 alldata <- lapply (list.files(pattern = "cleaned") , read.csv) #read in all 'cleaned files'
 combined <- reduce (alldata, full_join, by = c("peptide", "orf_id", "n_proteins"), all=TRUE) #all=TRUE keeps unique values if they're not present in all replicates (e.g. if peptide ASYDFYK was detected in one replicate but not another, it will put NA as the abundance in the replicate where it is not found -as opposed to not including it at all)
 
-##changes the column names to include sample ID (treatment) and injection number
+##changes the column names to include treatment and injection number
 names(combined) <- gsub (pattern = "cleaned_openms_output_20230203_211216_1037_097_LJ_*", replacement = "", x = names (combined))
 
 combined_v2 <- reshape2::melt(combined, id.vars=c("peptide", "orf_id", "n_proteins")) %>%  
                separate(variable, c("treatment", "injection_number")) %>% 
-               rename(non_normalized_abundance = value) 
+               rename(non_normalized_abundance = value) #this can take a minute
 
 combined_v2$treatment <- sample_namenumber_map[combined_v2$treatment] #match the name of the injection with sample name map
 combined_v2$treatment <- paste(combined_v2$treatment,combined_v2$injection_number, sep = "_") #paste the injection number to each sample since each sample was injected twice.  
@@ -97,22 +110,23 @@ combined_v2 <- combined_v2[c(1,2,3,4,6)]
 combined_v3 <- dcast(combined_v2, peptide + orf_id + n_proteins ~ treatment, value.var = 'non_normalized_abundance'  )
 combined_v3[is.na(combined_v3)] = 0 #replace NA's with 0. this will be dealt with later in the DE analysis.  
 
-write.csv(combined_v3, "cleaned_openms_output_allsamples_20230227.csv", row.names=FALSE)
+write.csv(combined_v3, "cleaned_openms_output_allsamples_20230307.csv", row.names=FALSE)
 ```
 
 #Step 2 - last updated: 2023-02-27
-- Adds taxonomy and functional annotation to each peptide
-- Peptides that match >1 ORF and/or taxonomy  will have >1 functional and or taxnomy annotation. Next chunk deals with this
+QC: yes
+- Assign taxonomy and functional annotation to each peptide
+- Peptides that match >1 ORF and/or taxonomy will have >1 functional and or taxnomy annotation. Step 3 deals with this
 ```{r}
-combined_v3 <- read.csv("cleaned_openms_output_allsamples_20230227.csv")
+combined_v3 <- read.csv("cleaned_openms_output_allsamples_20230307.csv")
 
 annotations <- fread("D:/School/PhD/PS117/data/datannotations/annotation_allTFG.grpnorm_mmetsp_fc_pn_reclassified.edgeR.csv") [,c(1,2,4:9,12:15,22,26:29,44,43,45)]
 
 combined_v4 <- combined_v3 %>%
-      separate_rows(orf_id, sep = "/") %>% #some peptides match with more than one ORF; this sparates each of these matches into a row
-      mutate (orf_id = gsub("XXX_","", as.character(orf_id))) %>% # remove the 'XXX_' from the ORFs names that match to both database and decoy (we will still use those)
+      separate_rows(orf_id, sep = "/") %>% #many peptides match with more than one ORF; this sparates each of these matches into a row
+      mutate (orf_id = gsub("XXX_","", as.character(orf_id))) %>% #remove the 'XXX_' from the ORFs names that match to both database and decoy (we will still use those)
       merge(annotations, by = "orf_id", all.x = TRUE) %>%  #add tax. ID and functional annotation to each peptide. Some peptides will match to several ORFs with different func. tax.; so they'll have more than one func. and tax. ID; #all.x =TRUE keeps all the peptides, even the ones that matched to the databse but are not in the annotation file. 
-      replace(is.na(.), "not_in_annotation") %>% #there are two types of missing annotation data here, 'NA' and empty column. NA means the peptide (ORF) is not in the annotation file all together, empty means peptide (ORF) is in annotation file, but is not clusters / doesnt't have an annotation.So I'm replacing NA's with 'not in annotation' to clarify. 
+      replace(is.na(.), "not_in_annotation") %>% #there are two types of missing annotation data here, 'NA' and empty column. NA means the peptide (ORF) is not in the annotation file all together, empty means peptide (ORF) is in annotation file, but is not clustered / doesnt't have an annotation. So I'm replacing NA's with 'not in annotation' to clarify. 
 
       #put 'unassigned' in all emptpy cells to make data management easier down the line
       mutate (cluster = sub("^$","unassigned_cluster", as.character(cluster))) %>% 
@@ -135,12 +149,13 @@ combined_v4 <- combined_v3 %>%
       mutate (grpnorm_taxgrp = sub("^$","unassigned_grpnorm_taxgrp", as.character(grpnorm_taxgrp))) %>%
       mutate (best_tax_string = sub("^$","unassigned_best_tax_string", as.character(best_tax_string))) %>%
   
-#separate the 'best_tax_string' into different taxonomic levels. The warning here is because some taxonomic strings don't go all the way down to species (prokaryotes), or some ORFs don't have a taxonomy, so this code fills those unkowns with "NA" or just makes the cells empty. The next chuck of code replaces the "NA" and empty cells with 'unassigned'. 
+#separate the 'best_tax_string' into different taxonomic levels. The warning here is because some taxonomic strings don't go all the way down to species (prokaryotes), or some ORFs don't have a taxonomy, so this code fills those unkowns with "NA" or just makes the cells empty.
+#The next two lines of code replaces the "NA" and empty cells with 'unassigned' or 'not_in_annotation'. 
       separate(best_tax_string, sep = ";", c("tax_a","tax_b","tax_c","tax_d","tax_e","tax_f","tax_g", "tax_h")) %>% 
 
       mutate(across(82:88, ~ ifelse(tax_a == 'not_in_annotation', "not_in_annotation", . ))) %>% #for the peptides not in annotation file, we'll have to look at the first string character (tax_a), and if they're not in annotation, their whole string will be "not_in annotation". everything else remains the same. 
                       
-#then, for the peptides in the annotation file but without taxonomy, or whose annotation don't go down to species (e.g. viruses, prokaryotes etc), some of the taxonmy cells have NA, and others don't so it's important to do the replace_na and the mutate so all empty and NA cells get an 'unassigned_tax' label.       
+#then for the peptides in the annotation file but without taxonomy, or whose annotation don't go down to species (e.g. viruses, prokaryotes etc), some of the taxonmy cells have NA, and others don't so it's important to do the replace_na and the mutate so all empty and NA cells get an 'unassigned_tax' label.       
       replace_na(list(tax_a = "unassigned_tax")) %>% 
       replace_na(list(tax_b = "unassigned_tax")) %>%  
       replace_na(list(tax_c = "unassigned_tax")) %>%  
@@ -148,7 +163,7 @@ combined_v4 <- combined_v3 %>%
       replace_na(list(tax_e = "unassigned_tax")) %>%  
       replace_na(list(tax_f = "unassigned_tax")) %>%  
       replace_na(list(tax_g = "unassigned_tax")) %>% 
-      replace_na(list(tax_h = "unassigned_tax"))  %>%
+      replace_na(list(tax_h = "unassigned_tax")) %>%
   
       group_by_at(c(2:63)) %>% #change this depending on number of samples. here, include peptide, nproteins, and samples
 
@@ -184,11 +199,13 @@ combined_v4 <- combined_v3 %>%
                 ungroup() 
 
 ## Random, useful things I learned when I did this chunck: 
-#when manualy searching a contig ID, the '+' at the end makes invisible
+#when manualy searching a contig ID, the '+' and '-' at the end makes invisible
 ```
 
 #Step 3 - last updated: 2023-02-27
-- Pull out and combine all the unique annotations for each peptide. For example, if a peptide matches to several ORFs of different clusters, it's 'uniq_cluster' will be a string of all those clusters. If it matches to several ORFs of the same cluster, it will just have that one cluster in its uniq_cluster annotation. 
+QC: yes
+- Pull out and combine all the unique annotations for each peptide. 
+For example, if a peptide matches to several ORFs of different clusters, its 'uniq_cluster' will be a string of all those clusters. If it matches to several ORFs of the same cluster, it will just have that one cluster in its uniq_cluster annotation. 
 ```{r}
 combined_v5 <- combined_v4 %>%
       mutate(uniq_cluster = lapply (strsplit(cluster, split = "---"), unique)) %>%
@@ -220,13 +237,15 @@ combined_v5 <- combined_v4 %>%
       mutate (uniq_grpnorm_taxgrp = lapply (strsplit(grpnorm_taxgrp, split = "---"), unique)) %>%
       select(c(1,2, 64, 90:115,  3:62)) 
   
-## make the strings into characters, otherwise they're a pain
+## make the strings into characters, otherwise they're a pain to deal with
 combined_v5 <- apply(combined_v5, 2, as.character) 
 combined_v5 <- data.frame(combined_v5)
 ```
 
 #Step 4 - last updated: 2023-02-27
+QC: yes
 - Get the highest resolution taxon ID possible for each peptide
+- This is a good place to save a version of the data. 
 ```{r}
 # in here, I'm using the ") as the indication that there are more than one taxon ID assigned to a specific peptide
 combined_v6 <- combined_v5 %>% 
@@ -242,29 +261,26 @@ combined_v6 <- combined_v5 %>%
 ## what this does is it looks at the highest tax resolution I'm willing to work with (order, e.g. Fragilariopsis), and sees if a peptide is ambiguous at that level. If it is not, it assigns it that highest tax resolution, if it is not, it assigns it one resolution lower, unless that resolution is also ambiguous, which then makes it move one more resolution lower it until domain. If domain is ambiguous, it assigns the peptide ad 'ambiguous_domain'
 ```
 
-#Step 5 - last updated: 2023-02-28
+#Step 5 - last updated: 2023-03-07
+QC: yes
 - Add the entire string of taxonomy down to the highest taxonomic resolution we can confidently ID 
-- This is a bit tricky because some taxonomic assignments have numbers, spaces and other weird characters ("+", "( )") in them. Be super careful here
+- This is a bit tricky because some taxonomic assignments have weird characters ("+", "( )") in them.*Be very careful here and manually check data*
 ```{r}
 annotations <- read.csv("D:/School/PhD/PS117/data/datannotations/annotation_allTFG.grpnorm_mmetsp_fc_pn_reclassified.edgeR.csv") [,c(1,43,45)]
 stringlist <- unique (annotations$best_tax_string) #make a list of all the unique taxonomy strings in the annotation file
-
 stringlist_df <- data.frame(stringlist)
 
 ## because of the weird characters in the annotations, I'm gonna try to get rid of as many of those as possible to make sure we get a good match
-
 stringlist_df$stringlist_adjusted <- gsub("\\+|\\(|\\)",'',stringlist_df$stringlist ) #remove all plus signs and brackets. the \\ denotes literal, otherwise the plus and bracket signs are seen as regular expression
 
-combined_v6$final_taxon_id_adjusted <- gsub("\\+|\\(|\\)",'',combined_v6$final_taxon_id )
+combined_v6$final_taxon_id_adjusted <- gsub("\\+|\\(|\\)",'',combined_v6$final_taxon_id ) #remove all plus signs and brackets from the data
 
 combined_v6$taxon_string_new <- sapply(combined_v6$final_taxon_id_adjusted, function(x) 
     sub(sprintf("(.*%s).*", x), "\\1", grep(x, stringlist_df$stringlist_adjusted, 
-     value = TRUE)[1]))  #this matches the final taxon ID (highest res) with a string of taxonmy. this also takes a few mins #look at end of chunk
+     value = TRUE)[1]))  #this matches the final taxon ID (highest res) with a string of taxonmy.#this also takes a few mins #look at end of chunk
 
-combined_v6 <- combined_v6 %>% 
-                mutate (taxon_string_new =  ifelse (is.na(taxon_string_new), final_taxon_id_adjusted, 
+combined_v6 <- combined_v6 %>%  mutate (taxon_string_new =  ifelse (is.na(taxon_string_new), final_taxon_id_adjusted, 
                                                   taxon_string_new))
-  
 combined_v6 <- combined_v6 %>% separate(taxon_string_new, into=c("domain", "B", "C", "class", "class_x", "F", "G", "genus"), sep = ";")
 
 combined_v7 <- combined_v6 %>% 
@@ -277,16 +293,15 @@ identical(combined_v7[[91]], combined_v7[[99]]) #this should print out 'true'
 
 combined_v8 <- combined_v7 [c(1:29,91:99, 30:89)]
 
-write.csv(combined_v8, "combined_v8_20230228.csv", row.names = FALSE)
-
 ## Notes: 
-#This is what I did originally, but this overlooked any taxonomic ID's with weird characters. I.e. originally I kept the + and ( and ), and it didn't work
+#This is what I did originally, but this overlooked any taxonomic ID's with weird characters. I.e. originally I kept the '+' and '(' and ')', and it didn't work
 # combined_v6$taxon_string <- sapply(combined_v6$final_taxon_id, function(x) 
 #     sub(sprintf("(.*%s).*", x), "\\1", grep(x, stringlist_df$stringlist, 
 #      value = TRUE)[1])) 
 ```
 
-#Step 6 - last updated: 2023-02-28
+#Step 6 - last updated: 2023-03-07
+QC:yes
 - Add consensus cluster annotations to clusters
 ```{r}
 mcl_annotation <- read.csv("D:/School/PhD/Data/FragTranscriptome/Transcriptome/MCL_tfg_de_annotation_allTFG.grpnorm_mmetsp_fc_pn_reclassified.csv") [,c(48, 49, 50, 51, 52)]
@@ -294,7 +309,7 @@ mcl_annotation <- read.csv("D:/School/PhD/Data/FragTranscriptome/Transcriptome/M
 mcl_annotation <- mcl_annotation %>% distinct(cluster, .keep_all = TRUE) #keep unique clusters only 
 mcl_annotation[mcl_annotation==""] <- "noclusterannotation" #make sure there's something for the clusters with no annotation 
 
-mcl_annotation$cluster_annotation <- paste(mcl_annotation$cluster_size, mcl_annotation$ann_type, mcl_annotation$ann_id,
+mcl_annotation$cluster_annotation <- paste(mcl_annotation$ann_type, mcl_annotation$ann_id,
                                            mcl_annotation$ann_desc, sep = "_")
                                             
 mcl_annotation <- mcl_annotation [c(1,6)] 
@@ -303,83 +318,111 @@ mcl_annotation$cluster <- gsub(" ","", as.character (mcl_annotation$cluster)) #r
 ## now we have a dataframe with clusters and annotations, and we want to combine it with the protein file 
 #can pick up from combined_v8 here
 
-combined_v9 <- combined_v8  %>% 
-               mutate( cluster = ifelse (grepl('")', combined_v8$uniq_cluster), "ambiguous_cluster",
-                                  combined_v8$uniq_cluster)) #create column with unique cluster annotations or 'ambiguous
+##split the uniq_cluster string into individual clusters to match them with cluster IDs 
 
-combined_v9$cluster <- gsub(" ","", as.character (combined_v9$cluster)) #remove spaces from cluster names
+combined_v8$cluster_adjusted <- gsub('"|)',"", gsub('[cC]\\(','', combined_v8$uniq_cluster)) #remove the quotations and brackets from the string using nested gsub 
+combined_v8$cluster_adjusted <- gsub(" ","", as.character (combined_v8$cluster_adjusted)) #remove spaces from cluster names just incase
 
-## find out if all the unique clusters in the data are in the cluster annotation
-## it turns out that there are several clusters e.g. "clust_480542", "clust_370505", "clust_9249" not in the cluster annotation. I manually checked these clusters, and they all have one peptide matched to them, they're measured in <3 samples total, the ORF doesn't have annotation etc. So they're low quality, and therefore I'm comfortable with them not being there. 
+## cut it off at 6 different clusters. chances are, if a peptides matches to 6 clusters, they'll have different annotations. 
+combined_v9 <- combined_v8 %>% separate(cluster_adjusted, into=c("cluster_A", "cluster_B", "cluster_C", "cluster_D", "cluster_E", "cluster_F"), sep = ",")
+
+##merge cluster annotation with clusters 
+combined_v10 <- combined_v9 %>% 
+  mutate(cluster_Aa = ifelse(cluster_A %in% mcl_annotation$cluster, 
+                             mcl_annotation$cluster_annotation[match(cluster_A, mcl_annotation$cluster)],
+                             cluster_A))
+
+combined_v10 <- combined_v10 %>% 
+  mutate(cluster_Bb = ifelse(cluster_B %in% mcl_annotation$cluster, 
+                             mcl_annotation$cluster_annotation[match(cluster_B, mcl_annotation$cluster)],
+                             cluster_B))
+
+combined_v10 <- combined_v10 %>% 
+  mutate(cluster_Cc = ifelse(cluster_C %in% mcl_annotation$cluster, 
+                             mcl_annotation$cluster_annotation[match(cluster_C, mcl_annotation$cluster)],
+                             cluster_C))
+
+combined_v10 <- combined_v10 %>% 
+  mutate(cluster_Dd = ifelse(cluster_D %in% mcl_annotation$cluster, 
+                             mcl_annotation$cluster_annotation[match(cluster_D, mcl_annotation$cluster)],
+                             cluster_D))
+
+combined_v10 <- combined_v10 %>% 
+  mutate(cluster_Ee = ifelse(cluster_E %in% mcl_annotation$cluster, 
+                             mcl_annotation$cluster_annotation[match(cluster_E, mcl_annotation$cluster)],
+                             cluster_E))
+
+combined_v10 <- combined_v10 %>% 
+  mutate(cluster_Ff = ifelse(cluster_F %in% mcl_annotation$cluster, 
+                             mcl_annotation$cluster_annotation[match(cluster_F, mcl_annotation$cluster)],
+                             cluster_F))
+
+##then combine the cluster annotations into one column
+combined_v10$clust_annotation <- paste(combined_v10$cluster_Aa, combined_v10$cluster_Bb, combined_v10$cluster_Cc, sep = ";") 
+##and keep the unique annotations. E.g. if a peptide matches to two clusters with the same annotation, it will keep one annotation 
+combined_v10$uniq_cluster_annotation <- sapply(strsplit(combined_v10$clust_annotation, split = ";"), function(x) paste(unique(x), collapse = ";")) 
+
+combined_v10 <-   combined_v10 [c(1:4, 112, 5:98)] 
+combined_v10$uniq_cluster <- gsub('"|)',"", gsub('[cC]\\(','', combined_v10$uniq_cluster)) #remove the quotations and brackets 
+combined_v10$uniq_cluster_annotation <- gsub(';NA',"", combined_v10$uniq_cluster_annotation)  #remove the NA from clust annotation
+
+## Random notes
+#find out if all the unique clusters in the data are in the cluster annotation file. 
+#it turns out that there are several clusters e.g. "clust_480542", "clust_370505", "clust_9249" not in the cluster annotation file.
+#I manually checked these clusters, and they all have one peptide matched to them, they're found in <3 samples total, the ORF doesn't have annotation etc. So they're low quality, and therefore I'm comfortable with them not being there. 
+
 #x<- anti_join(combined_v9, mcl_annotation, by = c("cluster" = "cluster"))
 #unique(x$cluster)
 
-
-combined_v10 <- merge(mcl_annotation,combined_v9, by = "cluster", all.y = TRUE) #add cluster ID to each peptide. this leaves ambigous, not-in-annotation etc. clusters as NAs. we'll fix those. 
-
-
-#We'll need to 
-
-
-
-
-
-proteomicsdata2 <- proteomicsdata2[order(proteomicsdata2$peptide),] #to keep the same order as the original proteomics file.
-
-proteomicsdata2$cluster_annotation <- ifelse (is.na(proteomicsdata2$cluster_annotation), proteomicsdata2$cluster, proteomicsdata2$cluster_annotation)
-
-proteomicsdata3 <- proteomicsdata2[c(3:6, 1,2, 7:130)]
-
-write.csv(proteomicsdata3, "all_ps117_taxon_function_peptides_non-normalized_injection_means_20230206.csv", row.names = FALSE)
+#combined_v10 <- merge(mcl_annotation,combined_v9, by = "cluster", all.y = TRUE) #add cluster ID to each peptide. this leaves ambigous, not-in-annotation etc. clusters as NAs. we'll fix those. 
 ```
 
-
-
-#Step 7 - 
-get injection average -because we injected each biological replicate twice, we need to get the average of each of those injections for DE work and other stats #20230203
+#Step 7 - last updated: 2023-03-07
+QC: yes
+- Do some cleanup and organization 
+- Export data table 
+- Get injection averages and export data table for that too 
 ```{r}
-proteomicsdata <- read.csv("all_ps117_taxon_function_peptides_non-normalized_individual_injections_20230203.csv", header = T)
+##remove the " and the c( and ) from all cells . do this for the annotations with () in them. 
+combined_v10[9] <- lapply(combined_v10[9], function(x) {
+  gsub('"|)',"", gsub('[cC]\\(','', x))})
 
-melted_proteomicsdata <- melt(proteomicsdata, id.vars=c(1:38)) %>%
+combined_v10[12] <- lapply(combined_v10[12], function(x) {
+  gsub('"|)',"", gsub('[cC]\\(','', x))})
+
+combined_v10[21] <- lapply(combined_v10[21], function(x) {
+  gsub('"|)',"", gsub('[cC]\\(','', x))})
+
+write.csv(combined_v10, "all_ps117_taxon-function_peptides_non-normalized_individual-injections_20230307.csv", row.names = FALSE)
+
+#because we injected each biological replicate twice, we need to get the average of each of those injections for DE work and other stats 
+combined_v11 <- melt(combined_v10, id.vars=c(1:39)) %>%
             rename(treatment = variable) %>%
             rename(non_norm_abundance = value ) %>%
-            separate(treatment, into=c("bioassay", "temperature", "iron", "timepoint", "replicate", "injection"), sep = "_") #this will take a minute for large data
+            separate(treatment, into=c("bioassay", "temperature", "iron", "timepoint", "replicate", "injection"), sep = "_") #this takes a couple of minutes
 
-melted_proteomicsdata$treatment <- paste (melted_proteomicsdata$bioassay, melted_proteomicsdata$timepoint, melted_proteomicsdata$temperature, melted_proteomicsdata$iron, melted_proteomicsdata$replicate, sep = "_")
+combined_v11$treatment <- paste (combined_v11$bioassay, combined_v11$timepoint, combined_v11$temperature, combined_v11$iron, combined_v11$replicate, sep = "_")
 
+combined_v11$non_norm_abundance <- as.numeric (combined_v11$non_norm_abundance)
 
-melted_proteomicsdata_av <- aggregate(melted_proteomicsdata$non_norm_abundance, 
-                                      by = melted_proteomicsdata[c (1:38, 46)], FUN=mean) %>% 
-                                      rename(non_norm_abundance = x)
-                                      
-melted_proteomicsdata_av2 <- dcast(melted_proteomicsdata_av, peptide~treatment)
+combined_v12 <- aggregate(combined_v11$non_norm_abundance,
+                                      by = combined_v11[c (1:39, 47)], FUN=mean) %>% 
+                                      rename(non_norm_abundance = x) #this will take a few minutes
 
-final <- merge (proteomicsdata, melted_proteomicsdata_av2, by = "peptide")
+combined_v13 <- dcast(combined_v12, peptide~treatment)
+combined_annotations <- combined_v10[c(1:39)]
+combined_v14 <- merge (combined_annotations, combined_v13, by = "peptide")
 
-write.csv (final, "all_ps117_taxon_function_peptides_non-normalized_injection_means_20230203.csv", row.names = FALSE)
-#it's weird that when exported, the file with the individual injections is smaller than the mean injections file which contains both mean and individual
-
-#after this step, I manually fixed some of the taxonomy annotations because some of the taxa names had weird formatting. So the new file has the name: 
-#all_ps117_taxon_function_peptides_non-normalized_injection_means_20230204.csv
+write.csv(combined_v14, "all_ps117_taxon-function_peptides_non-normalized_injections-means_20230307.csv", row.names = FALSE)
 ```
 
 
 
+
+# Old code + misc. 
 ```{r}
 #mutate (normalized_abundance = abundance /sum(abundance) *1000000 ) %>% #o
-
-#j - puts things back into a list format
-#k - adds a new column 'length' and shows the number of unique taxonomic groups that match to a peptide. So 1 means all the matches for that peptide came from one taxonomic group. 
-#l - gets the peptides that matched to only one taxonomic group (note the ^and$)
-#m - extracts the first word from the list (so this is the consensus taxa)
-#n - some words end with comma and some dont. this just gets rid of the comma
-#o - normalizes each row by the total sum and multiplies by a million 
 ```
-
-
-
-
-
 
 
 
