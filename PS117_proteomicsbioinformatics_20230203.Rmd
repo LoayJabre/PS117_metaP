@@ -1,5 +1,4 @@
-Last edited: 2023-03-07
-Loay Jabre 
+Loay Jabre - Last edited: 2023-03-24
 
 This script takes the final database searching pipeline output (.cvs files), and assigns a taxonomic group and a functional annotation to each peptide using the database's complimentary annotation file. 
 
@@ -28,12 +27,12 @@ library(gplots)
 library(ggpubr)
 ```
 
-#Step II: Make a sample name map  
+#Step II - last updated: 2023-01-15
 QC: yes
-- This is to convert the sample numbers used on the mass spec to meaningful names with treatments, replicates etc.
+- Make a sample name map to convert the sample numbers used on the mass spec to meaningful names with treatments, replicates etc.
 ```{r}
 ##this name map is specific to PS117 samples, but can be adapted for any sample
-sample_namenumber_map <- c ("S01" = "BA1_T0_T0_T0_A",
+sample_namenumber_map <- c ("S01" = "BA1_T0_T0_T0_A", 
                             "S02" = "BA1_T0_T0_T0_B",
                             "S03" = "BA1_T0_T0_T0_C",
                             "S04" = "BA1_LT_noFe_T8_B",
@@ -66,7 +65,7 @@ sample_namenumber_map <- c ("S01" = "BA1_T0_T0_T0_A",
                             )
 ```
 
-#Step 1 - last updated: 2023-03-07
+#Step 1 - last updated: 2023-03-24
 QC: yes
 - Takes .csv files from the DB-searching pipeline, remove unnecessary columns, and combine into one dataframe for processing 
 ```{r}
@@ -95,7 +94,7 @@ Map (write.csv, all_files, names(all_files), row.names=FALSE)
 
 ##combine all the injections into one dataframe
 alldata <- lapply (list.files(pattern = "cleaned") , read.csv) #read in all 'cleaned files'
-combined <- reduce (alldata, full_join, by = c("peptide", "orf_id", "n_proteins"), all=TRUE) #all=TRUE keeps unique values if they're not present in all replicates (e.g. if peptide ASYDFYK was detected in one replicate but not another, it will put NA as the abundance in the replicate where it is not found -as opposed to not including it at all)
+combined <- reduce (alldata, full_join, by = c("peptide", "orf_id", "n_proteins")) #all=TRUE not needed because of "full_join". It keeps unique values if they're not present in all replicates (e.g. if peptide ASYDFYK was detected in one replicate but not another, it will put NA as the abundance in the replicate where it is not found -as opposed to not including it at all)
 
 ##changes the column names to include treatment and injection number
 names(combined) <- gsub (pattern = "cleaned_openms_output_20230203_211216_1037_097_LJ_*", replacement = "", x = names (combined))
@@ -110,21 +109,21 @@ combined_v2 <- combined_v2[c(1,2,3,4,6)]
 combined_v3 <- dcast(combined_v2, peptide + orf_id + n_proteins ~ treatment, value.var = 'non_normalized_abundance'  )
 combined_v3[is.na(combined_v3)] = 0 #replace NA's with 0. this will be dealt with later in the DE analysis.  
 
-write.csv(combined_v3, "cleaned_openms_output_allsamples_20230307.csv", row.names=FALSE)
+write.csv(combined_v3, "cleaned_openms_output_allsamples_20230324.csv", row.names=FALSE)
 ```
 
-#Step 2 - last updated: 2023-02-27
+#Step 2 - last updated: 2023-03-24
 QC: yes
 - Assign taxonomy and functional annotation to each peptide
 - Peptides that match >1 ORF and/or taxonomy will have >1 functional and or taxnomy annotation. Step 3 deals with this
 ```{r}
-combined_v3 <- read.csv("cleaned_openms_output_allsamples_20230307.csv")
+combined_v3 <- read.csv("cleaned_openms_output_allsamples_20230324.csv")
 
 annotations <- fread("D:/School/PhD/PS117/data/datannotations/annotation_allTFG.grpnorm_mmetsp_fc_pn_reclassified.edgeR.csv") [,c(1,2,4:9,12:15,22,26:29,44,43,45)]
 
 combined_v4 <- combined_v3 %>%
       separate_rows(orf_id, sep = "/") %>% #many peptides match with more than one ORF; this sparates each of these matches into a row
-      mutate (orf_id = gsub("XXX_","", as.character(orf_id))) %>% #remove the 'XXX_' from the ORFs names that match to both database and decoy (we will still use those)
+      filter(!grepl("XXX", orf_id)) %>%  #remove the decoy matches from the peptides that match to both decoy and real peptides. 
       merge(annotations, by = "orf_id", all.x = TRUE) %>%  #add tax. ID and functional annotation to each peptide. Some peptides will match to several ORFs with different func. tax.; so they'll have more than one func. and tax. ID; #all.x =TRUE keeps all the peptides, even the ones that matched to the databse but are not in the annotation file. 
       replace(is.na(.), "not_in_annotation") %>% #there are two types of missing annotation data here, 'NA' and empty column. NA means the peptide (ORF) is not in the annotation file all together, empty means peptide (ORF) is in annotation file, but is not clustered / doesnt't have an annotation. So I'm replacing NA's with 'not in annotation' to clarify. 
 
@@ -152,8 +151,7 @@ combined_v4 <- combined_v3 %>%
 #separate the 'best_tax_string' into different taxonomic levels. The warning here is because some taxonomic strings don't go all the way down to species (prokaryotes), or some ORFs don't have a taxonomy, so this code fills those unkowns with "NA" or just makes the cells empty.
 #The next two lines of code replaces the "NA" and empty cells with 'unassigned' or 'not_in_annotation'. 
       separate(best_tax_string, sep = ";", c("tax_a","tax_b","tax_c","tax_d","tax_e","tax_f","tax_g", "tax_h")) %>% 
-
-      mutate(across(82:88, ~ ifelse(tax_a == 'not_in_annotation', "not_in_annotation", . ))) %>% #for the peptides not in annotation file, we'll have to look at the first string character (tax_a), and if they're not in annotation, their whole string will be "not_in annotation". everything else remains the same. 
+      mutate(across(82:88, ~ ifelse(tax_a == 'not_in_annotation', "not_in_annotation", . ))) %>% #for the peptides not in annotation file, we'll have to look at the first string character (tax_a), and if they're "not_in_annotation", their whole string will be "not_in annotation". everything else remains the same. 
                       
 #then for the peptides in the annotation file but without taxonomy, or whose annotation don't go down to species (e.g. viruses, prokaryotes etc), some of the taxonmy cells have NA, and others don't so it's important to do the replace_na and the mutate so all empty and NA cells get an 'unassigned_tax' label.       
       replace_na(list(tax_a = "unassigned_tax")) %>% 
@@ -165,9 +163,9 @@ combined_v4 <- combined_v3 %>%
       replace_na(list(tax_g = "unassigned_tax")) %>% 
       replace_na(list(tax_h = "unassigned_tax")) %>%
   
-      group_by_at(c(2:63)) %>% #change this depending on number of samples. here, include peptide, nproteins, and samples
+      group_by_at(c(2:63)) %>% #change this depending on number of samples. Include peptide, nproteins, and all injections 
 
-      summarise(cluster = str_flatten(cluster, "---"), #the str_flatten allows selection of separator. this is because many annotations have comas in them, so the script thinks it's more than one annotation   
+      summarise(cluster = str_flatten(cluster, "---"), #this condenses all the annotations for each peptide. The str_flatten allows selection of separator. this is because many annotations have comas in them, so the script thinks it's more than one annotation   
                 orf_id = str_flatten(orf_id, ","),
                 kegg_hit = str_flatten(kegg_hit, "---"),
                 kegg_desc = str_flatten(kegg_desc, "---"),
@@ -204,8 +202,8 @@ combined_v4 <- combined_v3 %>%
 
 #Step 3 - last updated: 2023-02-27
 QC: yes
-- Pull out and combine all the unique annotations for each peptide. 
-For example, if a peptide matches to several ORFs of different clusters, its 'uniq_cluster' will be a string of all those clusters. If it matches to several ORFs of the same cluster, it will just have that one cluster in its uniq_cluster annotation. 
+- Combine all the unique annotations for each peptide, and keep non-unique annotations as a string. 
+For example, if a peptide matches to several ORFs belonging to clusters, its 'uniq_cluster' will be a string of all those clusters. If it matches to several ORFs of the same cluster, it will just have that one cluster in its uniq_cluster annotation. 
 ```{r}
 combined_v5 <- combined_v4 %>%
       mutate(uniq_cluster = lapply (strsplit(cluster, split = "---"), unique)) %>%
@@ -238,28 +236,54 @@ combined_v5 <- combined_v4 %>%
       select(c(1,2, 64, 90:115,  3:62)) 
   
 ## make the strings into characters, otherwise they're a pain to deal with
-combined_v5 <- apply(combined_v5, 2, as.character) 
+combined_v5 <- apply(combined_v5, 2, as.character) #this will take a minute
 combined_v5 <- data.frame(combined_v5)
 ```
+ 
+#Step 3.1 last updated: 2023-03-24
+- There are many peptides in the samples that are not in the annotation file for one reason or another. Some of these peptides are matched to only one ORF, so they are classified as 'no_in_annotation' only. 
+However, other peptides are matched to ORFs with real annotation and ORFs that are not in annotation file. So they have a real annotation, and a 'no_in_annotation' annotation. For these peptides, we'll assume that their annotation is their 'real' annotation and discard the 'not in annotation' match. 
+```{r}
+#one way of doing this is removing any "not_in_annotation" annotations from all the annotations columns. That's because anything with this annotation with quotes has more than one annotation match. 
 
-#Step 4 - last updated: 2023-02-27
+#I'll streamline this script at a later time, but I'm doing this step by step for now to make sure the script is doing what it's supposed to do
+
+combined_v5a <- combined_v5 %>%
+                mutate(across(c(4:29), ~ gsub(", \"not_in_annotation\"", "", .)))
+
+combined_v5b <- combined_v5a %>%
+                mutate(across(c(4:29), ~ gsub("\"not_in_annotation\", ", "", .)))
+
+combined_v5c <- combined_v5b %>%
+                mutate(across(c(4:29), ~ gsub("\"", "", .)))
+
+combined_v5d <- combined_v5c %>%
+                mutate(across(c(4:29), ~ gsub("c\\(", "", .)))
+
+combined_v5e <- combined_v5d %>%
+                mutate(across(c(4:29), ~ gsub(")", "", .)))
+```
+
+
+#Step 4 - last updated: 2023-03-24
 QC: yes
 - Get the highest resolution taxon ID possible for each peptide
-- This is a good place to save a version of the data. 
 ```{r}
 # in here, I'm using the ") as the indication that there are more than one taxon ID assigned to a specific peptide
-combined_v6 <- combined_v5 %>% 
-               mutate(final_taxon_id =  ifelse(grepl('")', uniq_tax_g) & !grepl ('")', uniq_tax_f), paste0(uniq_tax_f),
-                                           ifelse(grepl('")', uniq_tax_f) & !grepl ('")', uniq_tax_e), paste0(uniq_tax_e),
-                                           ifelse(grepl('")', uniq_tax_e) & !grepl ('")', uniq_tax_d), paste0(uniq_tax_d),
-                                           ifelse(grepl('")', uniq_tax_d) & !grepl ('")', uniq_tax_c), paste0(uniq_tax_c),
-                                           ifelse(grepl('")', uniq_tax_c) & !grepl ('")', uniq_tax_b), paste0(uniq_tax_b),
-                                           ifelse(grepl('")', uniq_tax_b) & !grepl ('")', uniq_tax_a), paste0(uniq_tax_a),
-                                           ifelse(grepl('")', uniq_tax_a), "ambiguous_domain",
+combined_v6 <- combined_v5e %>% 
+               mutate(final_taxon_id =  ifelse(grepl(',', uniq_tax_g) & !grepl (',', uniq_tax_f), paste0(uniq_tax_f),
+                                           ifelse(grepl(',', uniq_tax_f) & !grepl (',', uniq_tax_e), paste0(uniq_tax_e),
+                                           ifelse(grepl(',', uniq_tax_e) & !grepl (',', uniq_tax_d), paste0(uniq_tax_d),
+                                           ifelse(grepl(',', uniq_tax_d) & !grepl (',', uniq_tax_c), paste0(uniq_tax_c),
+                                           ifelse(grepl(',', uniq_tax_c) & !grepl (',', uniq_tax_b), paste0(uniq_tax_b),
+                                           ifelse(grepl(',', uniq_tax_b) & !grepl (',', uniq_tax_a), paste0(uniq_tax_a),
+                                           ifelse(grepl(',', uniq_tax_a), "ambiguous_domain",
                                             uniq_tax_g))))))))
 
-## what this does is it looks at the highest tax resolution I'm willing to work with (order, e.g. Fragilariopsis), and sees if a peptide is ambiguous at that level. If it is not, it assigns it that highest tax resolution, if it is not, it assigns it one resolution lower, unless that resolution is also ambiguous, which then makes it move one more resolution lower it until domain. If domain is ambiguous, it assigns the peptide ad 'ambiguous_domain'
+## The above code looks at the highest tax. resolution I'm willing to work with (order, e.g. Fragilariopsis), and sees if a peptide is ambiguous at that level. If it is not, it assigns it that highest tax resolution, if it is ambiguous, it assigns it one resolution lower, unless that resolution is also ambiguous, which then makes it move one more resolution lower it until domain. If domain is ambiguous, it assigns the peptide as 'ambiguous_domain'
 ```
+
+
 
 #Step 5 - last updated: 2023-03-07
 QC: yes
@@ -281,15 +305,16 @@ combined_v6$taxon_string_new <- sapply(combined_v6$final_taxon_id_adjusted, func
 
 combined_v6 <- combined_v6 %>%  mutate (taxon_string_new =  ifelse (is.na(taxon_string_new), final_taxon_id_adjusted, 
                                                   taxon_string_new))
+
 combined_v6 <- combined_v6 %>% separate(taxon_string_new, into=c("domain", "B", "C", "class", "class_x", "F", "G", "genus"), sep = ";")
 
 combined_v7 <- combined_v6 %>% 
   mutate(across(c(domain:genus),~ ifelse(is.na(.),combined_v6$final_taxon_id_adjusted,.))) #replace NA's for the peptides without taxonomy with the highest tax. resolution  
 
 #see if there are any taxonomies giving issues still. 
-identical(combined_v7[[91]], combined_v7[[99]]) #this should print out 'true'
+identical(combined_v7[[91]], combined_v7[[99]]) #this should print out 'true' - Fabrea is acting weird. but that's OK
 # if false, find out where the differences are
-#x<- anti_join(combined_v7, combined_v7, by = c("final_taxon_id_adjusted" = "genus"))
+x<- anti_join(combined_v7, combined_v7, by = c("final_taxon_id_adjusted" = "genus"))
 
 combined_v8 <- combined_v7 [c(1:29,91:99, 30:89)]
 
@@ -320,10 +345,9 @@ mcl_annotation$cluster <- gsub(" ","", as.character (mcl_annotation$cluster)) #r
 
 ##split the uniq_cluster string into individual clusters to match them with cluster IDs 
 
-combined_v8$cluster_adjusted <- gsub('"|)',"", gsub('[cC]\\(','', combined_v8$uniq_cluster)) #remove the quotations and brackets from the string using nested gsub 
-combined_v8$cluster_adjusted <- gsub(" ","", as.character (combined_v8$cluster_adjusted)) #remove spaces from cluster names just incase
+combined_v8$cluster_adjusted <- gsub(" ","", as.character (combined_v8$uniq_cluster)) #remove spaces from cluster names just incase
 
-## cut it off at 6 different clusters. chances are, if a peptides matches to 6 clusters, they'll have different annotations. 
+## cut it off at 6 different clusters. chances are, if a peptides matches to >6 clusters, they'll have different annotations. 
 combined_v9 <- combined_v8 %>% separate(cluster_adjusted, into=c("cluster_A", "cluster_B", "cluster_C", "cluster_D", "cluster_E", "cluster_F"), sep = ",")
 
 ##merge cluster annotation with clusters 
@@ -357,13 +381,12 @@ combined_v10 <- combined_v10 %>%
                              mcl_annotation$cluster_annotation[match(cluster_F, mcl_annotation$cluster)],
                              cluster_F))
 
-##then combine the cluster annotations into one column
+##then combine the cluster annotations into one column (I found that 3 annotations is enough)
 combined_v10$clust_annotation <- paste(combined_v10$cluster_Aa, combined_v10$cluster_Bb, combined_v10$cluster_Cc, sep = ";") 
 ##and keep the unique annotations. E.g. if a peptide matches to two clusters with the same annotation, it will keep one annotation 
 combined_v10$uniq_cluster_annotation <- sapply(strsplit(combined_v10$clust_annotation, split = ";"), function(x) paste(unique(x), collapse = ";")) 
 
 combined_v10 <-   combined_v10 [c(1:4, 112, 5:98)] 
-combined_v10$uniq_cluster <- gsub('"|)',"", gsub('[cC]\\(','', combined_v10$uniq_cluster)) #remove the quotations and brackets 
 combined_v10$uniq_cluster_annotation <- gsub(';NA',"", combined_v10$uniq_cluster_annotation)  #remove the NA from clust annotation
 
 ## Random notes
@@ -383,23 +406,15 @@ QC: yes
 - Export data table 
 - Get injection averages and export data table for that too 
 ```{r}
-##remove the " and the c( and ) from all cells . do this for the annotations with () in them. 
-combined_v10[9] <- lapply(combined_v10[9], function(x) {
-  gsub('"|)',"", gsub('[cC]\\(','', x))})
+colnames(combined_v10)[2] <- "n_orfs"
 
-combined_v10[12] <- lapply(combined_v10[12], function(x) {
-  gsub('"|)',"", gsub('[cC]\\(','', x))})
-
-combined_v10[21] <- lapply(combined_v10[21], function(x) {
-  gsub('"|)',"", gsub('[cC]\\(','', x))})
-
-write.csv(combined_v10, "all_ps117_taxon-function_peptides_non-normalized_individual-injections_20230307.csv", row.names = FALSE)
+write.csv(combined_v10, "all_ps117_taxon-function_peptides_non-normalized_individual-injections_20230324.csv", row.names = FALSE)
 
 #because we injected each biological replicate twice, we need to get the average of each of those injections for DE work and other stats 
 combined_v11 <- melt(combined_v10, id.vars=c(1:39)) %>%
             rename(treatment = variable) %>%
             rename(non_norm_abundance = value ) %>%
-            separate(treatment, into=c("bioassay", "temperature", "iron", "timepoint", "replicate", "injection"), sep = "_") #this takes a couple of minutes
+            separate(treatment, into=c("bioassay", "temperature", "iron", "timepoint", "replicate", "injection"), sep = "_") #this can take a minute
 
 combined_v11$treatment <- paste (combined_v11$bioassay, combined_v11$timepoint, combined_v11$temperature, combined_v11$iron, combined_v11$replicate, sep = "_")
 
@@ -413,387 +428,5 @@ combined_v13 <- dcast(combined_v12, peptide~treatment)
 combined_annotations <- combined_v10[c(1:39)]
 combined_v14 <- merge (combined_annotations, combined_v13, by = "peptide")
 
-write.csv(combined_v14, "all_ps117_taxon-function_peptides_non-normalized_injections-means_20230307.csv", row.names = FALSE)
+write.csv(combined_v14, "all_ps117_taxon-function_peptides_non-normalized_injections-means_20230324.csv", row.names = FALSE)
 ```
-
-
-
-
-# Old code + misc. 
-```{r}
-#mutate (normalized_abundance = abundance /sum(abundance) *1000000 ) %>% #o
-```
-
-
-
-
-
-
-
-Total intensity for each sample
-```{r}
-setwd("D:/School/PhD/PS117/data/open-MS_output/")
-#s1a <- read.table("210526_0977_097_S01_03.csv", header = TRUE)[,c(1,2,3,5)] 
-#s1atop <- head(arrange(s1a, desc(abundance)), n = 1) #this subsets the dataframe and shows the top n most abundant peptides.
-
-filelist <- list.files(pattern = ".csv") #this makes a list of all the csv files in the working directory so they can all be imported at once
-
-intensity <- ''
-for(i in 1:length(filelist)){
-  data <- read.table(filelist[i], header = T) 
-  intensity[i] <- sum(as.numeric(data$abundance), rm.NA=T)} #this adds the intensity ofeach peptide from each injection e.g. it does a column sum for the intnesities. 
-
-totalintensity <- data.frame(filelist,intensity)
-
-#just extracting the sample numbers here
-totalintensity$sample_id <- str_sub(totalintensity$filelist, start=20, end = 22)
-totalintensity$method <- str_sub(totalintensity$filelist, start=24, end = 26) #in here, the 'method' is for the injections that had a slightly different mass spec method.
-totalintensity$method <- gsub('^\\.|\\.$', '', totalintensity$method) #gets rid of the '.' at the end of the method number.
-totalintensity$method <- as.numeric(totalintensity$method)
-
-totalintensity$sample_id <- sample_namenumber_map [totalintensity$sample_id]
-
-
-ggplot(totalintensity, aes(x=sample_id, y= as.numeric(intensity)))+ 
-  geom_point(size = 5, alpha =0.3, aes(color =method >113))+ #the blue here are the methods that Elden played with. 
-  scale_colour_manual(values = c("black", "blue")) + 
-  scale_y_log10(limits = c(10000, 10000000000000))+
-  theme_bw()+
-  ylab (expression ("Total matched peptide ion intensity"))+
-  xlab("")+
-  theme(axis.text.x=element_text(face = "bold", size = 10, color = "black", angle = 45, vjust =1, hjust = 1),
-        axis.text.y=element_text(face = "bold", size = 15, color = "black"),
-        axis.title.y=element_text(size=15,face="bold", color = "black"), 
-        legend.position = "none")
-```
-
-
-total intensity sketchpad
-```{r}
-#totalintensity not including crap data
-for(i in 1:length(filelist)){
-  data1  <- dplyr::filter(read.table(filelist[i], header = T), !grepl('sp',protein)) 
-  intensity[i] <- sum(as.numeric(data1$abundance), rm.NA=T)}
-
-totalintensity_nocrap  <- data.frame(filelist,intensity)
-totalintensity_nocrap$sample_id <- str_sub(totalintensity_nocrap$filelist, start=17, end = 19)
-totalintensity_nocrap$method <- str_sub(totalintensity_nocrap$filelist, start=21, end = 22)
-
-ggplot(totalintensity_nocrap, aes(x=sample_id, y= as.numeric(intensity)))+ 
-  geom_point (color = "red", size = 3, alpha = 0.4)+
-  geom_point(size = 3, alpha =0.3, data = totalintensity, aes(y = as.numeric(intensity), color =method >63))+
-  scale_colour_manual(values = c("black", "blue")) + 
-  scale_y_log10(limits = c(1000000, 1000000000000))+
-  theme_bw()+
-  ylab (expression ("total ion intensity"))+
-  xlab("")+
-  theme(axis.text.x=element_text(face = "bold", size = 15, color = "black", angle = 90, vjust =0.5, hjust = 1),
-        axis.text.y=element_text(face = "bold", size = 15, color = "black"),
-        axis.title.y=element_text(size=20,face="bold", color = "black"), 
-        legend.position = "none")
-
-
-#plot intensity of only the n most abundant peptides in each sample
-
-mostabund <- map_df(filelist, ~ {
-    dplyr::filter(read.table(.x, header = T), !grepl('sp',protein)) [,c(1,5)] %>% #this is so the nocrap DB is not selected
-    #read.table(.x, header = T)[,c(1,5)]%>%
-    slice_max(abundance, n = 50, with_ties = FALSE) %>% #can also use slice_min for lowest abundnace
-    mutate(col = c(1:50)) %>%
-    pivot_wider(names_from = col, values_from = c(peptide, abundance))
-})
-
-
-mostabund <-  data.frame(filelist, mostabund)
-mostabund$sample_id <- str_sub(mostabund$filelist, start=17, end = 19)
-mostabund$method <- str_sub(mostabund$filelist, start=21, end = 22)
-
-mostabund$totalabund <- rowSums(mostabund[grep('abundance', names(mostabund))]) #this adds the abundance of all the top n PSMs
-
-ggplot(mostabund, aes(x=sample_id, y= as.numeric(totalabund)))+ 
-  geom_point(color = "red")+
-  geom_point(size = 5, alpha =0.3, data = totalintensity_nocrap, aes(y = as.numeric(intensity), color =method >63))+
-  scale_colour_manual(values = c("black", "blue")) + 
-  scale_y_log10(limits = c(10, 1000000000000))+
-  theme_bw()+
-  ylab (expression ("total ion intensity"))+
-  xlab("")+
-  theme(axis.text.x=element_text(face = "bold", size = 15, color = "black", angle = 90, vjust =0.5, hjust = 1),
-        axis.text.y=element_text(face = "bold", size = 15, color = "black"),
-        axis.title.y=element_text(size=20,face="bold", color = "black"), 
-        legend.position = "none")
-
-##########################
-##########################
-
-#https://www.datanovia.com/en/blog/venn-diagram-with-r-or-rstudio-a-million-ways/
-
-#now I want to see how many of those top most abundant peptides are shared among the samples. 
-#focusing on the two different setting injections for sample 14 and 18 
-
-s1418 <- filter(mostabund, grepl('S14', sample_id))
-
-#first, I'm making a list of all the different top peptides in all the samples. 
-
-x <- s1418 [c(1:51)]
-x$sample_id <- str_sub(x$filelist, start=17, end = 22)
-
-
-rownames(x) <- x [,52]
-
-x <- x[c(2:51)]
-  
-unique (unlist(x))
-
-xy.list <- as.list(as.data.frame(t(x)))
-
-vtable <- venn(xy.list)
-x<- venn.diagram(xy.list, filename = "x.png", 
-                category.names = c("S14_LT_a","S14_LT_b","S14_HT_a","S14_HT_b" ),
-                #category.names = c("S18_LT_a","S18_LT_b","S18_HT_a","S18_HT_b" ),
-                fill = c("red", "orange", "blue", "green"), 
-                cex = 2)
-
-v.table <- venn(xy.list)
-print (v.table)
-```
-
-take all the text files from the mass spec FileInfo output, and puts them into one dataframe where the information can be viewed and plotted. 
-```{r}
-setwd("D:/School/PhD/PS117/data/mass-spec-info/")
-
-#creates a list of files names to be used
-#reads files into a list of vectors
-ps117_ms_info <- lapply(list.files(pattern = ".txt") , readLines) 
-
-#convert each element of the list into a data frame
-ps117_ms_info_df <- lapply(1:length(ps117_ms_info),function(i) data.frame(
-  id = i,
-                           rawdata=ps117_ms_info[[i]],
-                           stringsAsFactors = FALSE))
-
-#combines into a single dataframe
-ps117_ms_info_df <- do.call(rbind,ps117_ms_info_df)
-
-#split the rawdata at the first ':' into parameter and output, and trim spaces
-ps117_ms_info_df[,c("parameter","output")] <- str_trim(str_split_fixed(ps117_ms_info_df$rawdata,":",2)) 
-
-#convert from 'long' to 'wide' format - the parameter become column headings
-ps117_ms_info_df_2 <- ps117_ms_info_df[,c("id","parameter","output")]
-
-ps117_ms_info_df_3 <- dplyr::filter (ps117_ms_info_df_2, grepl('File name|Number of spectra$|Number of peaks|level 1|level 2',parameter))
-
-
-ps117_ms_info_df_4 <- reshape(ps117_ms_info_df_3, idvar = "id", timevar = "parameter", direction = "wide")
-
-
-ps117_ms_info_df_5 <- ps117_ms_info_df_4 [,c(2, 4:6)]
-
-names(ps117_ms_info_df_5) <- c("sample", "number_of_peaks", "ms1_spectra", "ms2_spectra")
-
-ps117_ms_info_df_5$sample_id <- str_sub(ps117_ms_info_df_5$sample, start=33, end = 34)
-ps117_ms_info_df_5$sample_id <-  paste0("S", ps117_ms_info_df_5$sample_id)
-
-#ps117_ms_info_df_5$samplenumber <- 1:nrow(ps117_ms_info_df_5)
-
-#ps117_ms_info_df_5$method <- str_sub(ps117_ms_info_df_5$sample, start=33, end = 34)
-
-#ps117_ms_info_df_5$samplename <- sample_namenumber_map [ps117_ms_info_df_5$sample_id]
-
-ps117_ms_info_df_5 <- dplyr::filter (ps117_ms_info_df_5, !grepl('BSA|Blk|new',sample))
-
-ps117_ms_info_df_5$sample_id <- sample_namenumber_map [ps117_ms_info_df_5$sample_id]
-
-
-
-ms1 <- ggplot(ps117_ms_info_df_5, aes(x=sample_id,
-                      y=as.numeric(ms1_spectra)))+ 
-  geom_point(size = 5, alpha =0.3)+#,aes(color =method >80))+
-  scale_colour_manual(values = c("black", "blue")) +  
-  scale_y_continuous(limits = c(0, 10000))+
-  theme_bw()+
-  ylab (expression ("# of MS1 Spectra"))+
-  xlab("")+
-  theme(axis.text.x=element_text(face = "bold", size = 8, color = "black", angle = 90, vjust =0.5, hjust = 1),
-        axis.text.y=element_text(face = "bold", size = 15, color = "black"),
-        axis.title.y=element_text(size=15, color = "black"), 
-        legend.position = "none")
-
-ms2 <- ggplot(ps117_ms_info_df_5, aes(x=sample_id,
-                      y=as.numeric(ms2_spectra)))+ 
-  geom_point(size = 5, alpha =0.3)+ #aes(color =method >80))+
-  #scale_colour_manual(values = c("black", "blue")) +  
-  scale_y_continuous(limits = c(0, 40000))+
-  theme_bw()+
-  ylab (expression ("# of MS2 Spectra"))+
-  xlab("")+
-  theme(axis.text.x=element_text(face = "bold", size = 5, color = "black", angle = 90, vjust =0.5, hjust = 1),
-        axis.text.y=element_text(face = "bold", size = 15, color = "black"),
-        axis.title.y=element_text(size=15,face="bold", color = "black"), 
-        legend.position = "none")
-
-
-ms1ms2ratio <- ggplot(ps117_ms_info_df_5, aes(x=sample_id,
-                      y=(as.numeric(ms2_spectra)/as.numeric(ms1_spectra))))+ 
-  geom_point(size = 5, alpha =0.3)+ #aes(color =method >80))+
-  #scale_colour_manual(values = c("black", "blue")) + 
-  scale_y_continuous(limits = c(0, 6))+
-  theme_bw()+
-  ylab (expression ("MS2 : MS1"))+
-  xlab("")+
-  theme(axis.text.x=element_text(face = "bold", size = 10, color = "black", angle = 45, vjust = 1, hjust = 1),
-        axis.text.y=element_text(face = "bold", size = 15, color = "black"),
-        axis.title.y=element_text(size=15,face="bold", color = "black"), 
-        legend.position = "none")
-
-plot_grid(ms1 + rremove("x.text") , ms2 + rremove("x.text"), ms1ms2ratio, 
-          nrow = 3, 
-          rel_heights = c(1, 1, 1.5),
-          align = "v")
-```
-
-output the number of peptide spectral matches (PSMs) identified for each injection after all the database searching is done.
-```{r}
-setwd("D:/School/PhD/PS117/data/open-MS_output/")
-
-filelist<- list.files(pattern = ".csv") 
-
-numberofrows <- lapply(X = filelist, FUN = function(x) {
-  length(count.fields(x, skip = 1))
-})
-
-var <- do.call(rbind,numberofrows)
-peps_total<- c(as.numeric(var))
-samplenames <- filelist
-ps117_npeptides <- data.frame(samplenames, peps_total)
-
-ps117_npeptides$sample_id <- str_sub(ps117_npeptides$samplenames, start=20, end = 22)
-ps117_npeptides$samplenumber <- 1:nrow(ps117_npeptides)
-
-ps117_npeptides$method <- str_sub(ps117_npeptides$samplenames, start=21, end = 22)
-
-ps117_npeptides <- dplyr::filter (ps117_npeptides, !grepl('_114|_115|_117|_118|_120|_121|_123|_124',samplenames))
-
-
-psmtotal <- ggplot(ps117_npeptides, aes(x=sample_id, y= as.numeric(peps_total)))+ 
-  geom_point(size = 5, alpha =0.3, aes(color =method >63))+
-  scale_colour_manual(values = c("black", "blue")) +  
-  scale_y_continuous(limits = c(0, 12000))+
-  theme_bw()+
-  ylab (expression ("PSMs total"))+
-  xlab("")+
-  theme(axis.text.x=element_text(face = "bold", size = 15, color = "black", angle = 90, vjust =0.5, hjust = 1),
-        axis.text.y=element_text(face = "bold", size = 15, color = "black"),
-        axis.title.y=element_text(size=20,face="bold", color = "black"), 
-        legend.position = "none")
-
-
-ps117_npeptides$injection <- str_sub(ps117_npeptides$samplenames, start=24, end = 26)
-
-ps117_ms_info_df_5$injection <- str_sub(ps117_ms_info_df_5$sample, start=36, end = 38)
-
-
-ps117_npeptides$sample_id <- sample_namenumber_map [ps117_npeptides$sample_id]
-
-
-merged <- merge (ps117_npeptides, ps117_ms_info_df_5, by = c("sample_id", "injection"))
-
-ggplot(merged, aes(x=sample_id, y= 100*(as.numeric(peps_total)/as.numeric(ms2_spectra))))+ 
-  geom_point(size = 5, alpha =0.3)+
-
-  #geom_point(size = 5, alpha =0.3, aes(color =method.x >63))+
-  scale_colour_manual(values = c("black", "blue")) +  
-  scale_y_continuous(limits = c(1, 40))+
-  theme_bw()+
-  ylab (expression ("PSMs %"))+
-  xlab("")+
-  theme(axis.text.x=element_text(face = "bold", size = 10, color = "black", angle = 45, vjust =1, hjust = 1),
-        axis.text.y=element_text(face = "bold", size = 15, color = "black"),
-        axis.title.y=element_text(size=20,face="bold", color = "black"),
-        legend.position = "none")
-
-
-plot_grid(psmtotal + rremove("x.text") , psmpercent , 
-          nrow = 2, 
-          align = "v")
-```
-
-
-scrap
-```{r}
-setwd("D:/School/PhD/PS117/data/open-MS_output/")
-alldata <- read.csv("all_ps117_normalized_tax_annotation_20220127.csv", header = T)
-
-
-isip <- filter(alldata, grepl('clust_1814 |clust_343 |clust_1154 ',taxon_function)) 
-
-csp <- filter(alldata, grepl('cold ',taxon_function)) 
-
-hsp <- filter(alldata, grepl('Hsp',taxon_function)) 
-
-plastocyanin <- filter(alldata, grepl('clust_1820 ',taxon_function))
-
-flavodoxin <- filter(alldata, grepl('clust_534 |clust_4660 ',taxon_function)) 
-nitrogen <- filter(alldata, grepl('clust_411 ',taxon_function)) 
-p700 <- filter(alldata, grepl('clust_55 |clust_211 |clust_42 ',taxon_function)) 
-
-lhc <- filter(alldata, grepl('clust_1194 |clust_712 |clust_1236 |clust_332 |clust_80 |clust_402 ',taxon_function)) 
-
-lhc <- filter(alldata, grepl('clust_332 ',taxon_function)) 
-
-lhcfrag <- filter(lhc, grepl('Pseudo',taxon_function)) 
-
-ribosomes <- filter(alldata, grepl('riboso',taxon_function))
-
-isip1 <- melt(nitrogen, id.vars=c("taxon_function", "peptide")) %>%
-            rename(treatment = variable) %>%
-            rename(norm_abundance = value )
-
-
-isip1 <- isip1 %>% separate(treatment, into=c("bioassay", "temperature", "iron", "timepoint", "replicate", "injection"), sep = "_")
-
-isip1 <- isip1 %>% separate(taxon_function, into=c("cluster", "x", "y", "z", "zz", "zzz"), sep = ";")
-
-
-isip1$replicate <- str_sub(isip1$replicate, -2,-2)
-isip1$injection <- str_sub(isip1$injection, 2)
-
-isip1$treatment <- paste (isip1$temperature, isip1$iron, sep ='_')
-
-
-treatment_order <- c('T0_T0', 'LT_noFe', 'LT_Fe', 'HT_noFe', 'HT_Fe')
-
-ggplot (isip1, aes (x = (factor(treatment, level = treatment_order)), y = norm_abundance, color = cluster)) +  
-  #geom_jitter(size = 3, width = 0.05, height = 0.5, alpha = 0.1)+
-  #geom_point(size = 4, alpha = 0.4)+
-  stat_summary(fun = mean, geom = "point", size = 3, stroke = 1, alpha = 0.6)+
-  stat_summary(fun.data =  mean_se, geom = "errorbar", size = 0.7, width = 0.1)+
-  #scale_color_manual(name="",
-                     #breaks = c("clust_1814 ", "clust_343 ", "clust_1154 "),
-                     #labels = c("ISIP-1", "ISIP-2A", "ISIP-3"),
-                     #values = c('red', 'black', 'blue')) +
-     #scale_color_manual(name="",
-                    # breaks = c("clust_55 ", "clust_42 ", "clust_211 "),
-                     #labels = c("PSI-P700", "PSII-psbA", "PSII-psbC"),
-                     #values = c('red', 'black', 'grey')) +
-   scale_color_manual(name="",
-                     breaks = c("clust_411 ", "clust_991 " ),
-                    labels = c("Nitrate Reductase", "Nit. transporter"),
-                     values = c('black', 'red')) +
-  theme_bw()+
-  #scale_y_log10()+
-  #theme (legend.position = "none", 
-        theme (axis.text.x = element_text(angle = 90)) +
-  xlab("")+
-  ylab ("normalized abundance")+
-  theme(axis.text.x=element_text(face = "bold", size = 15, color = "black", vjust = 1, hjust = 1, angle = 45),
-        axis.title.y=element_text(size=20,face = "bold", color = "black"), 
-        axis.text.y=element_text(face = "bold", size = 15, color = "black"),
-        strip.background =element_rect(fill = "white"),
-        legend.text = element_text(size = 12), 
-        strip.text.y = element_text(size = 15, face = "bold")) +
-  facet_grid(bioassay ~.)
-
-```
-
-
