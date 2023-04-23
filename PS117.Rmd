@@ -105,7 +105,7 @@ T0_T8_FenoFe <- function(yaxis, yaxislabel) {
         legend.position = "none") 
 }
 
-T0_T8_FenoFe (fvfm, F[v]/F[m]) + ylim(0.2, NA)
+#T0_T8_FenoFe (fvfm, F[v]/F[m]) + ylim(0.2, NA)
 
 
 #used in Figure 1
@@ -673,11 +673,20 @@ nmdsplots <- function (nmdsdata, title) {
                 panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
                 legend.key=element_blank(), 
                 plot.title = element_text(vjust = -7, hjust = 0.01))
-            }
+}
 
-peptide_nmds <- nmdsplots ("peptide", "Protein")  
-fc_nmds <- nmdsplots ("FC", "Flow Cytometry")
-pigment_nmds <- nmdsplots ("pigm", "Pigment")
+
+
+library(ggalt)
+
+peptide_nmds <- nmdsplots ("peptide", "Protein") + geom_encircle(aes (fill = bioassay), 
+                                                 s_shape = 0.5,alpha = 0.2) 
+                                
+fc_nmds <- nmdsplots ("FC", "Flow Cytometry") + geom_encircle(aes (fill = bioassay), 
+                                                 s_shape = 0.5,alpha = 0.2) 
+
+pigment_nmds <- nmdsplots ("pigm", "Pigment") + geom_encircle(aes (fill = bioassay), 
+                                                  s_shape = 0.5,alpha = 0.2) 
 
 ```
 
@@ -964,6 +973,8 @@ nmds <- plot_grid (pigment_nmds, fc_nmds, peptide_nmds,   NULL,
                   rel_heights = c(1,1,1,0.12),
                   labels = c("A", "B","C", ""))
 
+
+
 # plot_grid(nmds, fig2legend, 
 #           ncol = 2, 
 #           rel_widths = c(1,0.07), 
@@ -1006,7 +1017,7 @@ fig2 <- plot_grid (nmds, NULL, heatmaps, NULL, allgroup_labeled,
             align = "vh")
 #dev.off()
 
-png("ps117_figure2_highres_20230421.png", width=20, height=10, units="in", res=900) 
+png("ps117_figure2_highres_20230423.png", width=20, height=10, units="in", res=900) 
 ggdraw(fig2) + draw_plot (fig2_legendB, x = 0.295, y = 0.45, width = 0.0001, height = 0.001) +
                draw_plot (fig2_legendA, x = 0.3, y = 0.35, width = 0.0001, height = 0.001) 
 
@@ -1069,8 +1080,9 @@ ggplot(allgroupsbottom, aes( x = factor(treatmentrep, level = treatmentrep_order
 ```
 
 
+
 #Figure 3 -  2023-03-29
-Metal Plots 
+Metal Plots - use only PON for Figure 3, and the rest in supplement
 ```{r}
 #nonproteindata$PFe57_nM <-  ifelse (nonproteindata$PFe57_nM ==  "0.454", NA, 
                             #nonproteindata$PFe57_nM)
@@ -1078,41 +1090,19 @@ Metal Plots
 #Fe57POC <- T0_T8_FenoFe (PFe57_nM/(POC_uM),PFe[57]:POC~~(M:M)) + scale_x_discrete(limits=c("T0","noFe","Fe"),labels = c("T0", "T8 (-Fe)", "T8 (+Fe)")) + xlab("") + theme (axis.title.y=element_text(size=14, color = "black", face = "bold"))
 #Fe57PON <- T0_T8_FenoFe (PFe57_nM/(PON_uM),PFe[57]:PON~~(mM:M)) + scale_x_discrete(limits=c("T0","noFe","Fe"),labels = c("T0", "T8 (-Fe)", "T8 (+Fe)")) + xlab("") + theme (axis.title.y=element_text(size=14, color = "black", face = "bold"))
 
-MnPOC <- T0_T8_FenoFe (PMn_nM/(POC_uM),PMn:POC~~(mM:M)) + scale_x_discrete(limits=c("T0","noFe","Fe"),labels = c("T0", "T8 (-Fe)", "T8 (+Fe)")) + xlab("") + theme (axis.title.y=element_text(size=14, color = "black", face = "bold"))
-MnPON <- T0_T8_FenoFe (PMn_nM/(PON_uM),PMn:PON~~(mM:M)) + scale_x_discrete(limits=c("T0","noFe","Fe"),labels = c("T0", "T8 (-Fe)", "T8 (+Fe)")) + xlab("")+ theme (axis.title.y=element_text(size=14, color = "black", face = "bold"))
+MnPOC <- T0_T8_FenoFe (PMn_nM/(POC_uM),PMn:POC~~(mM:M)) #+ scale_x_discrete(limits=c("T0","noFe","Fe"),labels = c("T0", "T8 (-Fe)", "T8 (+Fe)")) + xlab("") #+ theme (axis.title.y=element_text(size=14, color = "black", face = "bold"))
+MnPON <- T0_T8_FenoFe (PMn_nM/(PON_uM),PMn:PON~~(mM:M)) #+ scale_x_discrete(limits=c("T0","noFe","Fe"),labels = c("T0", "T8 (-Fe)", "T8 (+Fe)")) #+ xlab("") #+ theme (axis.title.y=element_text(size=14, color = "black", face = "bold"))
 
-CuPOC <- T0_T8_FenoFe (PCu_nM/(POC_uM),PCu:POC~~(mM:M)) + scale_x_discrete(limits=c("T0","noFe","Fe"),labels = c("T0", "T8 (-Fe)", "T8 (+Fe)")) + xlab("")+ theme (axis.title.y=element_text(size=14, color = "black", face = "bold"))
-CuPON <- T0_T8_FenoFe (PCu_nM/(PON_uM),PCu:PON~~(mM:M)) + scale_x_discrete(limits=c("T0","noFe","Fe"),labels = c("T0", "T8 (-Fe)", "T8 (+Fe)")) + xlab("")+ theme (axis.title.y=element_text(size=14, color = "black", face = "bold"))
+CuPOC <- T0_T8_FenoFe (PCu_nM/(POC_uM),PCu:POC~~(mM:M)) #+ scale_x_discrete(limits=c("T0","noFe","Fe"),labels = c("T0", "T8 (-Fe)", "T8 (+Fe)")) + xlab("")+ theme (axis.title.y=element_text(size=14, color = "black", face = "bold"))
+CuPON <- T0_T8_FenoFe (PCu_nM/(PON_uM),PCu:PON~~(mM:M)) #+ scale_x_discrete(limits=c("T0","noFe","Fe"),labels = c("T0", "T8 (-Fe)", "T8 (+Fe)")) + xlab("")+ theme (axis.title.y=element_text(size=14, color = "black", face = "bold"))
 
-ZnPOC <- T0_T8_FenoFe (PZn_nM/(POC_uM),PZn:POC~~(mM:M)) + scale_x_discrete(limits=c("T0","noFe","Fe"),labels = c("T0", "T8 (-Fe)", "T8 (+Fe)")) + xlab("")+ theme (axis.title.y=element_text(size=14, color = "black", face = "bold"))
-ZnPON <- T0_T8_FenoFe (PZn_nM/(PON_uM),PZn:PON~~(mM:M)) + scale_x_discrete(limits=c("T0","noFe","Fe"),labels = c("T0", "T8 (-Fe)", "T8 (+Fe)")) + xlab("")+ theme (axis.title.y=element_text(size=14, color = "black", face = "bold"))
+ZnPOC <- T0_T8_FenoFe (PZn_nM/(POC_uM),PZn:POC~~(mM:M)) #+ scale_x_discrete(limits=c("T0","noFe","Fe"),labels = c("T0", "T8 (-Fe)", "T8 (+Fe)")) + xlab("")+ theme (axis.title.y=element_text(size=14, color = "black", face = "bold"))
+ZnPON <- T0_T8_FenoFe (PZn_nM/(PON_uM),PZn:PON~~(mM:M)) #+ scale_x_discrete(limits=c("T0","noFe","Fe"),labels = c("T0", "T8 (-Fe)", "T8 (+Fe)")) + xlab("")+ theme (axis.title.y=element_text(size=14, color = "black", face = "bold"))
 #metals_Co <- fig3_metals (PCo_nM, PCo:PON~(M:M))
 #metals_Ni <- fig3_metals (PNi_nM, PNi:PON)
 ```
 
-plot
-```{r}
-x <- plot_grid(MnPOC, NA,  MnPON, 
-               CuPOC, NA,  CuPON,
-               ZnPOC, NA,  ZnPON,
-          ncol = 3, 
-          labels = c("A", "", "B", 
-                     "C" , "", "D", 
-                     "E", "", "F"), 
-          rel_widths = c(1,0.1,1),
-          axis = 'tb',
-          align = 'hv')
 
-#png("ps117_figure3_highres_20230329.png", width=14, height=10, units="in", res=900) 
-plot_grid (x, vertical_legend, 
-           ncol = 2, 
-            rel_widths = c(1, 0.1), 
-            rel_heights = c(1, 0.5))
-#dev.off()
-```
-
-
-#Figure 4 - 2023-03-30
 Massage DE and fold change analysis outputs - 2023-03-28
 ```{r}
 #Read in the DE analyses for BA1 and B2, and combine
@@ -1128,7 +1118,7 @@ BA_DE <- merge (BA1, BA2, by = c("cluster", "taxon_F"), all = TRUE)
 BA_DE <- filter (BA_DE, grepl ("centric|pennate|Phaeocyst", taxon_F))
 
 
-#this will be the ende all be all cluster annotations. 
+#this will be the end all be all cluster annotations. 
 #This is based on consensus annotations as well as manual blasting, checking and double checking
 BA_DE$cluster_annotation <- ifelse (BA_DE$cluster ==  "clust_1814", "ISIP-1", 
                             ifelse (BA_DE$cluster ==  "clust_343", "ISIP-2A", 
@@ -1196,9 +1186,7 @@ BA_DE$cluster_annotation <- ifelse (BA_DE$cluster ==  "clust_1814", "ISIP-1",
                             ifelse (BA_DE$cluster ==  "clust_10365", "PET8",
                             ifelse (BA_DE$cluster ==  "clust_1550", "Cyt-b559",
                             ifelse (BA_DE$cluster ==  "clust_1322", "Porphobilinogen deaminase",  
-                                    
-
-                            BA_DE$cluster 
+                                          BA_DE$cluster 
                     ))))))))))))))))))))))))))))))))))))))))))))))))
 
 #pfam_PF00006_ATP synthase alpha/beta family, nucleotide-binding domain ?
@@ -1254,32 +1242,35 @@ alldata <- alldata [c(1,27,2, 30, 31, 3:26)]
 
 DE sliding plot
 ```{r}
-cluster_order <- c('Fructose bisphosphatase', 
-                   'ISIP-1',
-                   'ISIP-2A', 
-                   'ISIP-3',
-                   'Fasciclin',
-                   'Cu-Zn SOD',
-                   'Fe-Mn SOD',
-                   'Nitrate reductase',
-                   "Nitrite/Sulphite reductase", 
+cluster_order <- c('LHC', #split into PSI and PSII LHCs
+                   
+                   "PSII PsbU", 
+                   'PSII CP47',
+                   'PSII RC',
+                   'Cyt-b559',
+
+                   'Mn-cluster', 
                    'Plastocyanin',  
                    'Rhodopsin',
                    'Flavodoxin', 
                    'Ferredoxin', 
                    "Cyt-b6", 
                    'Cyt-f',
-                   'LHC', 
+                 
                    'PSI RC',
                    'PSI PsaA/PsaB',
-                   "PSII PsbU", 
-                   'PSII CP47',
-                   'PSII RC',
-                   'Mn-cluster', 
-                   'DoxX', 
-                   'APRT', 
-                   'PET8', 
-                   'Cyt-b559',
+                 
+                   'ISIP-1',
+                   'ISIP-2A', 
+                   'ISIP-3',
+                   
+                   'Fasciclin',
+                   
+                   'Cu-Zn SOD',
+                   'Fe-Mn SOD',
+                   'Nitrate reductase',
+                   "Nitrite/Sulphite reductase", 
+                 
                    'Porphobilinogen deaminase')
 
 BA_DE3 <- filter (alldata, grepl (paste(cluster_order, collapse = "|"), cluster_annotation)) 
@@ -1289,11 +1280,13 @@ BA_DE3$BA2_ironDE <-  ifelse (BA_DE3$BA2_Fe_FDR < 0.05, "*", "")
 # y= factor(cluster_annotation, level = cluster_order),
 DE_slide <- function (effect, significance, title) {
   ggplot (BA_DE3, aes(x= {{effect}}, 
-                   y = reorder (cluster_annotation, {{effect}}),
+                   #y = reorder (cluster_annotation, {{effect}}), #this is for reordering from positive to negative DE
+                   y =  factor(cluster_annotation, level = rev(cluster_order)), #this is for ordering based on the order of things in 'cluster_order'
                    color = taxon_F, 
                    #size = (BA1_grpnorm),
                    shape = {{significance}}))+ 
   geom_point (alpha = 0.7, size = 4) + 
+    #scale_y_reverse()+
   # geom_text(aes (label = {{significance}}), show.legend = FALSE, size = 8, nudge_y = 0.2)+
     scale_color_manual(name="",
                        breaks = c("Centric diatom", "Pennate diatom","Phaeocystis"),
@@ -1316,69 +1309,116 @@ DE_slide <- function (effect, significance, title) {
           geom_vline (xintercept = c(0), col = "black", lty = 2, lwd=0.3 )}
 
  
-A <- DE_slide (BA1_Fe_logFC, BA1_ironDE, "BA1 Fe Effect" ) +theme (legend.position = c(0.01, 0.97), legend.justification = c(0,0.95), legend.key.size = unit (0.4, "cm")) + guides(colour = guide_legend(override.aes = list(size=3))) + theme(legend.margin=margin(t=-0.7,  r=0, b=0, l=0, unit="cm")) 
+FeDE_BA1 <- DE_slide (BA1_Fe_logFC, BA1_ironDE, "BA1 Fe Effect" ) + 
+  theme (legend.position = c(0.01, 0.97), legend.justification = c(0,0.95), legend.key.size = unit (0.4, "cm")) +
+  guides(colour = guide_legend(override.aes = list(size=3))) + 
+  theme(legend.margin=margin(t=-0.7,  r=0, b=0, l=0, unit="cm")) +
+  xlim(-8,8)
 
-
-B <- ggplot (BA_DE3, aes(x = taxon_F, 
-                   y=  reorder (cluster_annotation, BA1_Fe_logFC),
-                   color = taxon_F, 
-                   size = BA1_grpnorm))+
-   geom_point(shape = "square", alpha = 0.7)+  
-   scale_size_continuous(name = "")+
-     scale_color_manual(name="",
-                       breaks = c("Centric diatom", "Pennate diatom","Phaeocystis"),
-                       labels = c("Centric diatoms", "Pennate diatoms", "Phaeocystis"),
-                       values = c("black", '#661100', '#117733'),
-                      guide = "none") + 
-    theme_bw ()+ 
-     theme(axis.text = element_blank(),
-         axis.title = element_blank(), 
-         axis.ticks.x = element_blank()) +
-   theme (legend.position = "none", 
-          legend.margin=margin(t=-4,  r=0, b=-10, l=0))
  
+FeDE_BA2 <- DE_slide (BA2_Fe_logFC, BA2_ironDE, "BA2 Fe Effect" ) + 
+  theme (legend.position = "none", axis.text.y = element_blank()) +
+    xlim(-8,8)
 
-C <- DE_slide (BA2_Fe_logFC, BA2_ironDE, "BA2 Fe Effect" ) +theme (legend.position = "none")
-  
-D <- ggplot (BA_DE3, aes(x = taxon_F, 
-                   y= reorder (cluster_annotation, BA2_Fe_logFC),
-                   color = taxon_F, 
-                   size = BA2_grpnorm))+
-   geom_point(shape = "square", alpha = 0.7)+  
-       scale_color_manual(name="",
-                       breaks = c("Centric diatom", "Pennate diatom","Phaeocystis"),
-                       labels = c("Centric diatoms", "Pennate diatoms", "Phaeocystis"),
-                       values = c("black", '#661100', '#117733'),
-                      guide = "none") + 
-    scale_size_continuous(name = "")+
 
-   theme_bw ()+ 
-   theme(axis.text = element_blank(),
-         axis.title = element_blank(), 
-         axis.ticks.x = element_blank()) +
-  
-  theme (legend.position = "top", 
-         legend.justification = "left",
-         legend.margin=margin(t=-4,  r=0, b=-10, l=-10))
-          #legend.title = element_text(angle = -90)) 
+
+# cluster abundance
+# ggplot (BA_DE3, aes(x = taxon_F, 
+#                    y=  reorder (cluster_annotation, BA1_Fe_logFC),
+#                    color = taxon_F, 
+#                    size = BA1_grpnorm))+
+#    geom_point(shape = "square", alpha = 0.7)+  
+#    scale_size_continuous(name = "")+
+#      scale_color_manual(name="",
+#                        breaks = c("Centric diatom", "Pennate diatom","Phaeocystis"),
+#                        labels = c("Centric diatoms", "Pennate diatoms", "Phaeocystis"),
+#                        values = c("black", '#661100', '#117733'),
+#                       guide = "none") + 
+#     theme_bw ()+ 
+#      theme(axis.text = element_blank(),
+#          axis.title = element_blank(), 
+#          axis.ticks.x = element_blank()) +
+#    theme (legend.position = "none", 
+#           legend.margin=margin(t=-4,  r=0, b=-10, l=0))
  
-  
-  
-x <- plot_grid(A, B,
-          ncol = 2, 
-          rel_widths = c(1, 0.3), 
-          align = "h", axis = "tb")
+ 
+#cluster abundance  
+# ggplot (BA_DE3, aes(x = taxon_F, 
+#                    y= reorder (cluster_annotation, BA2_Fe_logFC),
+#                    color = taxon_F, 
+#                    size = BA2_grpnorm))+
+#    geom_point(shape = "square", alpha = 0.7)+  
+#        scale_color_manual(name="",
+#                        breaks = c("Centric diatom", "Pennate diatom","Phaeocystis"),
+#                        labels = c("Centric diatoms", "Pennate diatoms", "Phaeocystis"),
+#                        values = c("black", '#661100', '#117733'),
+#                       guide = "none") + 
+#     scale_size_continuous(name = "")+
+# 
+#    theme_bw ()+ 
+#    theme(axis.text = element_blank(),
+#          axis.title = element_blank(), 
+#          axis.ticks.x = element_blank()) +
+#   
+#   theme (legend.position = "top", 
+#          legend.justification = "left",
+#          legend.margin=margin(t=-4,  r=0, b=-10, l=-10))
+#           #legend.title = element_text(angle = -90)) 
+#  
 
-y <- plot_grid(C, D,
+
+``` 
+
+Figure 3
+```{r}
+x <- plot_grid(MnPON, 
+          CuPON,
+          ZnPON,
+          ncol = 1, 
+       
+          align = "hv")
+
+#FeDE_BA1
+
+y <- plot_grid(FeDE_BA1, FeDE_BA2,
           ncol = 2, 
-          rel_widths = c(1, 0.3), 
-          align = "h", axis = "tb")
+          rel_widths = c(1,0.8))
+
+plot_grid(x,y, 
+          ncol = 2, 
+          rel_widths = c(0.8,1.5))
 
 #png("ps117_figure4_highres_20230330.png", width=8.3, height=10, units="in", res=900) 
 
-plot_grid (x, y, nrow = 2, labels = c("A", "B"))
-
 #dev.off()
+
+
+plot
+```{r}
+x <- plot_grid(MnPOC, NA,  MnPON, 
+               CuPOC, NA,  CuPON,
+               ZnPOC, NA,  ZnPON,
+          ncol = 3, 
+          labels = c("A", "", "B", 
+                     "C" , "", "D", 
+                     "E", "", "F"), 
+          rel_widths = c(1,0.1,1),
+          axis = 'tb',
+          align = 'hv')
+
+#png("ps117_figure3_highres_20230329.png", width=14, height=10, units="in", res=900) 
+plot_grid (x, vertical_legend, 
+           ncol = 2, 
+            rel_widths = c(1, 0.1), 
+            rel_heights = c(1, 0.5))
+#dev.off()
+```
+
+
+
+
+
+
 ```
 
 
