@@ -430,3 +430,38 @@ combined_v14 <- merge (combined_annotations, combined_v13, by = "peptide")
 
 write.csv(combined_v14, "all_ps117_taxon-function_peptides_non-normalized_injections-means_20230324.csv", row.names = FALSE)
 ```
+
+
+#Step 8 - last updated: 2023-03-28
+
+
+Deal with 'ambiguous' annotations and 'unassigned_clusters' - I ended up not doing anything with this. 
+For the DE analysis, I treated all 'unassigned' clusters are ribosomes. 
+```{r}
+setwd("D:/School/PhD/PS117/data/")
+
+combined_v14 <- read.csv("all_ps117_taxon-function_peptides_non-normalized_injections-means_20230324.csv")
+
+combined_v14$uniq_cluster <- sapply(lapply(strsplit(combined_v14$uniq_cluster, split = ",\\s*"), sort), paste, collapse = ", ") #rearrange the uniq_cluster annotations so the non-unique clusters are in the same order. e.g. a peptide matching with clust_1, clust_2 and a peptide matching with clust_2, clust_1 will both have the same unique cluster "clust_1, clust2"
+
+#Step I - tackled clusters with a unique 'unassigned_cluster' annotation. 
+unassigned <- filter (combined_v14, grepl("unassigned_cluster", uniq_cluster))
+
+unique(unassigned$uniq_grpnorm_compartment) #this shows that every peptide that matches to 'unassigned_cluster' is a ribosomal peptide. 
+unique(unassigned$uniq_KO_pathway)
+#new cluster annotations 
+combined_v15 <- combined_v14 %>% 
+                mutate(final_cluster =  ifelse(grepl('^unassigned_cluster$', uniq_cluster), "ribosome_cluster",
+                                      uniq_cluster))
+
+test <- combined_v15 [c(1:5, 70)]
+
+
+
+```
+
+
+
+
+
+
