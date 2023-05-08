@@ -1,0 +1,292 @@
+Loay Jabre - Last edited: 2023-03-07
+
+This script takes the QC output from  RawTools and plots some important metrics about the mass spec runs. 
+
+https://github.com/kevinkovalchik/RawTools
+https://pubs.acs.org/doi/10.1021/acs.jproteome.8b00721
+https://github.com/kevinkovalchik/RawTools/wiki/Quality-control-data-output
+```{r}
+setwd("D:/School/PhD/PS117/data/")
+library(dplyr)
+library(reshape2)
+library(tidyr)
+library(tidyverse)
+library(stringr)
+library(data.table)
+
+#plots
+library(ggplot2)
+library(plotly)
+library(gplots)
+library(ggpubr)
+library(ggthemes)
+library(cowplot) #for plot_grid
+```
+
+```{r}
+##this name map is specific to PS117 samples, but can be adapted for any sample
+sample_namenumber_map <- c ("01" = "BA1_T0_T0_T0_A",
+                            "02" = "BA1_T0_T0_T0_B",
+                            "03" = "BA1_T0_T0_T0_C",
+                            "04" = "BA1_LT_noFe_T8_B",
+                            "05" = "BA1_LT_noFe_T8_C",
+                            "06" = "BA1_LT_Fe_T8_A",
+                            "07" = "BA1_LT_Fe_T8_B",
+                            "08" = "BA1_LT_Fe_T8_C",
+                            "09" = "BA1_HT_noFe_T8_A",
+                            "10" = "BA1_HT_noFe_T8_B",
+                            "11" = "BA1_HT_noFe_T8_C",
+                            "12" = "BA1_HT_Fe_T8_A",
+                            "13" = "BA1_HT_Fe_T8_B",
+                            "14" = "BA1_HT_Fe_T8_C",
+                            "15" = "BA2_T0_T0_T0_A",
+                            "16" = "BA2_T0_T0_T0_B",
+                            "17" = "BA2_T0_T0_T0_C",
+                            "18" = "BA2_LT_noFe_T8_A",
+                            "19" = "BA2_LT_noFe_T8_B",
+                            "20" = "BA2_LT_noFe_T8_C",
+                            "21" = "BA2_LT_Fe_T8_A",
+                            "22" = "BA2_LT_Fe_T8_B",
+                            "23" = "BA2_LT_Fe_T8_C",
+                            "24" = "BA2_HT_noFe_T8_A",
+                            "25" = "BA2_HT_noFe_T8_B",
+                            "26" = "BA2_HT_noFe_T8_C",
+                            "27" = "BA2_HT_Fe_T8_A",
+                            "28" = "BA2_HT_Fe_T8_B",
+                            "29" = "BA2_HT_Fe_T8_C",
+                            "30" = "BA1_T0_T0_T0_D", 
+                            "BSA" = "BSA", 
+                            "Blk" = "Blk")
+```
+
+PS117
+```{r}
+ps117 <- read.csv("QcDataTable_20230318.csv")
+
+ps117$samplename <- gsub (pattern = "/home/ljabre/projects/ps117/ps117data/ps117_raw/211216_*|\\.raw|1037_097_LJ_*|1037_097_*|_V46*", replacement = "",
+                                            ps117$RawFile)
+
+ps117 <- ps117 %>% separate(samplename, c("sample", "injection")) 
+
+ps117$sample <- sample_namenumber_map[ps117$sample]
+
+ps117$injection <- as.numeric(ps117$injection)
+
+ps117 <- ps117 [c(1,2,47,48,8:11,13,14,16:23,32,33,35:43)]
+
+ps117 <- melt(ps117, id.vars = c(1:4))  
+
+
+ps117$variable <- ifelse (ps117$variable ==  "NumMs1Scans", "MS1 Scans",
+                  ifelse (ps117$variable ==  "TotalScans", "Total Scans",
+                  ifelse (ps117$variable ==  "NumMs2Scans", "MS2 Scans",   
+                  ifelse (ps117$variable ==  "Ms2ScanRate..s.", "MS2 scan rate (Hz)",  
+                  ifelse (ps117$variable ==  "Ms1ScanRate..s.", "MS1 scan rate (Hz)",  
+                  ifelse (ps117$variable ==  "NumEsiInstabilityFlags", "ESI Instability Flags",  
+                  ifelse (ps117$variable ==  "MedianAsymmetryAt10.H", "Median Asymmetry at 10% Peak Height",  
+                  ifelse (ps117$variable ==  "MedianAsymmetryAt50.H", "Median Asymmetry at 50% Peak Height",
+                  ifelse (ps117$variable ==  "MedianMs1FillTime.ms.", "Median MS1 Fill Time",
+                  ifelse (ps117$variable ==  "MedianMs2FillTime.ms.", "Median MS2 Fill Time",
+                  ifelse (ps117$variable ==  "MeanMs2TriggerRate..Ms1Scan.", "MS2 Triggered per MS1",
+                  as.character(ps117$variable ))))))))))))
+                          
+                         
+```
+
+
+MG 
+```{r}
+mg <- read.csv ("D:/PhD_extra/Metalgate2021/QcDataTable.csv")
+
+mg$samplename <- gsub (pattern = "/home/ljabre/projects/lena/mgdata/mgraw/221031_1099_097_MG_*|\\.raw*", replacement = "",
+                                            mg$RawFile)
+
+mg_nonsplit <- filter (mg, !grepl ("cv", samplename))
+
+mg_nonsplit <- mg_nonsplit %>% separate(samplename, c("sample", "injection")) 
+
+mg_nonsplit$injection <- as.numeric(mg_nonsplit$injection)
+
+mg_nonsplit <- mg_nonsplit [c(1,2,47,48,8:11,13,14,16:23,32,33,35:43)]
+
+mg_nonsplit <- melt(mg_nonsplit, id.vars = c(1:4))  
+
+mg_nonsplit$variable <- ifelse (mg_nonsplit$variable ==  "NumMs1Scans", "MS1 Scans",
+                  ifelse (mg_nonsplit$variable ==  "TotalScans", "Total Scans",
+                  ifelse (mg_nonsplit$variable ==  "NumMs2Scans", "MS2 Scans",   
+                  ifelse (mg_nonsplit$variable ==  "Ms2ScanRate..s.", "MS2 scan rate (Hz)",  
+                  ifelse (mg_nonsplit$variable ==  "Ms1ScanRate..s.", "MS1 scan rate (Hz)",  
+                  ifelse (mg_nonsplit$variable ==  "NumEsiInstabilityFlags", "ESI Instability Flags",  
+                  ifelse (mg_nonsplit$variable ==  "MedianAsymmetryAt10.H", "Median Asymmetry at 10% Peak Height",  
+                  ifelse (mg_nonsplit$variable ==  "MedianAsymmetryAt50.H", "Median Asymmetry at 50% Peak Height",
+                  ifelse (mg_nonsplit$variable ==  "MedianMs1FillTime.ms.", "Median MS1 Fill Time",
+                  ifelse (mg_nonsplit$variable ==  "MedianMs2FillTime.ms.", "Median MS2 Fill Time",
+                  ifelse (mg_nonsplit$variable ==  "MeanMs2TriggerRate..Ms1Scan.", "MS2 Triggered per MS1",
+                  as.character(mg_nonsplit$variable ))))))))))))
+
+```
+
+
+```{r}
+#  [1] TotalAnalysisTime.min.                                   TotalScans                                              
+#  [3] NumMs1Scans                                              NumMs2Scans                                             
+#  [5] Ms1ScanRate..s.                                          Ms2ScanRate..s.                                         
+#  [7] MeanDutyCycle.s.                                         MeanMs2TriggerRate..Ms1Scan.                            
+#  [9] Ms1MedianSummedIntensity                                 Ms2MedianSummedIntensity                                
+# [11] MedianPrecursorIntensity                                 MedianMs1IsolationInterference                          
+# [13] MedianMs2PeakFractionConsumingTop80PercentTotalIntensity NumEsiInstabilityFlags                                
+# [15] MedianMs1FillTime.ms.                                    MedianMs2FillTime.ms.                                
+# [17] MedianPeakWidthAt10.H.s.                                 MedianPeakWidthAt50.H.s.                             
+# [19] MedianAsymmetryAt10.H                                    MedianAsymmetryAt50.H                                
+# [21] MeanCyclesPerAveragePeak                                 PeakCapacity                                         
+# [23] TimeBeforeFirstExceedanceOf10.MaxIntensity               TimeAfterLastExceedanceOf10.MaxIntensity             
+# [25] FractionOfRunAbove10.MaxIntensity    
+
+ps117samples <- filter (ps117, !grepl ("BSA|Blk", sample) & !grepl("114|115|117|118|120|121|123|124", injection) )
+
+QCplots <-  function(variabletoplot, yaxislabel) {
+ggplot(filter (mg_nonsplit, grepl({{variabletoplot}}, variable)), 
+       aes(x= injection, 
+            y = value, 
+       color = variable)) + 
+  geom_point (size = 4.5, alpha = 0.4) + 
+  labs (x = "Injection #", y = yaxislabel)+
+  theme_bw()+
+ scale_color_colorblind ()+
+  scale_x_continuous(breaks = seq(0, max(mg_nonsplit$injection), by = 4))+
+  theme(axis.text=element_text(face = "bold", size = 11, color = "black"),
+        axis.title=element_text(size = 13, face = "bold", color = "black")) + 
+  theme (legend.position = "top", 
+         legend.justification = "left",
+         legend.title = element_blank(), 
+         legend.text = element_text(size = 11, face = "bold"), 
+         legend.margin=margin(0,0,0,0),
+        legend.box.margin=margin(0,-10,-10,-10))  
+}
+  
+a <- QCplots ("Total Scans|MS1 Scans|MS2 Scans", "Number of Scans") 
+b <- QCplots ("Triggered", "MS2 Scans : MS1 Scans") + theme (legend.position = "none") 
+c <-  QCplots ("scan rate", "Scans per Second")
+
+#png("ps117_figureS_QCA_highres_20230325.png", width=45*0.75, height=35*0.75, units="cm", res=900) 
+plot_grid(a, 
+          c, 
+          b, 
+          labels = c("A", "B", "C"),
+          ncol = 1, 
+          align = "vh")
+#dev.off()
+
+d <- QCplots ("ESI Instability Flags", "ESI Instability Flags") + theme (legend.position = "none") 
+e <- QCplots ("Asymmetry", "MS1 Peak Asymmetry")
+f <- QCplots ("Fill", "Median Fill Time (ms)")  
+
+#png("ps117_figureS_QCB_highres_20230325.png", width=45*0.75, height=35*0.75, units="cm", res=900) 
+plot_grid(d, 
+          e, 
+          f, 
+          labels = c("A", "B", "C"),
+          ncol = 1, 
+          align = "vh")
+#dev.off()
+
+
+# ggplot(filter (ps117, !grepl ("BSA|Blk", sample) & !grepl("114|115|117|118|120|121|123|124", injection) & grepl("Total Scans|MS1 Scans|MS2 Scans", variable)), 
+#        aes(x= injection, 
+#             y = value, 
+#        color = variable)) + 
+#   geom_point (size = 5, alpha = 0.4) + 
+#   labs (x = "Injection #", y = "Number of Scans")+
+#   theme_bw()+
+#  scale_color_colorblind ()+
+#   scale_x_continuous(breaks = seq(0, max(ps117$injection), by = 4))+
+#   theme(axis.text=element_text(face = "bold", size = 12, color = "black"),
+#         axis.title=element_text(size = 14,face = "bold", color = "black")) + 
+#   theme (legend.position = "top", 
+#          legend.justification = "left",
+#          legend.title = element_blank(), 
+#          legend.text = element_text(size = 12, face = "bold"))  
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Old but could be useful 
+output the number of peptide spectral matches (PSMs) identified for each injection after all the database searching is done. 
+```{r}
+setwd("D:/School/PhD/PS117/data/open-MS_output/")
+
+filelist<- list.files(pattern = ".csv") 
+
+numberofrows <- lapply(X = filelist, FUN = function(x) {
+  length(count.fields(x, skip = 1))
+})
+
+var <- do.call(rbind,numberofrows)
+peps_total<- c(as.numeric(var))
+samplenames <- filelist
+ps117_npeptides <- data.frame(samplenames, peps_total)
+
+ps117_npeptides$sample_id <- str_sub(ps117_npeptides$samplenames, start=20, end = 22)
+ps117_npeptides$samplenumber <- 1:nrow(ps117_npeptides)
+
+ps117_npeptides$method <- str_sub(ps117_npeptides$samplenames, start=21, end = 22)
+
+ps117_npeptides <- dplyr::filter (ps117_npeptides, !grepl('_114|_115|_117|_118|_120|_121|_123|_124',samplenames))
+
+
+psmtotal <- ggplot(ps117_npeptides, aes(x=sample_id, y= as.numeric(peps_total)))+ 
+  geom_point(size = 5, alpha =0.3, aes(color =method >63))+
+  scale_colour_manual(values = c("black", "blue")) +  
+  scale_y_continuous(limits = c(0, 12000))+
+  theme_bw()+
+  ylab (expression ("PSMs total"))+
+  xlab("")+
+  theme(axis.text.x=element_text(face = "bold", size = 15, color = "black", angle = 90, vjust =0.5, hjust = 1),
+        axis.text.y=element_text(face = "bold", size = 15, color = "black"),
+        axis.title.y=element_text(size=20,face="bold", color = "black"), 
+        legend.position = "none")
+
+
+ps117_npeptides$injection <- str_sub(ps117_npeptides$samplenames, start=24, end = 26)
+
+ps117_ms_info_df_5$injection <- str_sub(ps117_ms_info_df_5$sample, start=36, end = 38)
+
+
+ps117_npeptides$sample_id <- sample_namenumber_map [ps117_npeptides$sample_id]
+
+
+merged <- merge (ps117_npeptides, ps117_ms_info_df_5, by = c("sample_id", "injection"))
+
+ggplot(merged, aes(x=sample_id, y= 100*(as.numeric(peps_total)/as.numeric(ms2_spectra))))+ 
+  geom_point(size = 5, alpha =0.3)+
+
+  #geom_point(size = 5, alpha =0.3, aes(color =method.x >63))+
+  scale_colour_manual(values = c("black", "blue")) +  
+  scale_y_continuous(limits = c(1, 40))+
+  theme_bw()+
+  ylab (expression ("PSMs %"))+
+  xlab("")+
+  theme(axis.text.x=element_text(face = "bold", size = 10, color = "black", angle = 45, vjust =1, hjust = 1),
+        axis.text.y=element_text(face = "bold", size = 15, color = "black"),
+        axis.title.y=element_text(size=20,face="bold", color = "black"),
+        legend.position = "none")
+
+
+plot_grid(psmtotal + rremove("x.text") , psmpercent , 
+          nrow = 2, 
+          align = "v")
+```
+
+
