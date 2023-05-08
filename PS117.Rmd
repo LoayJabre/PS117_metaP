@@ -412,7 +412,7 @@ pigment_means$treatment2 <- ifelse (pigment_means$fulltreatment ==  "LT_noFe", "
 
 #x = factor(treatment2, level = tempFe_order)
 
-fig2_pigmentmeans <-ggplot(pigment_means, aes(x = treatment2,
+fig2_pigmentmeans <- ggplot(pigment_means, aes(x = treatment2,
                                               y = taxon_group2, 
                                               fill = fract)) +  
     geom_tile(color = "black", lwd = 0.7)+
@@ -420,9 +420,11 @@ fig2_pigmentmeans <-ggplot(pigment_means, aes(x = treatment2,
     scale_fill_gradientn(colours = c("deepskyblue2","white","darkred"),
                          values = rescale(c(0.0000001,0.35,.9)),
                          guide = "colorbar", limits=c(0.0000001,0.9),
-                       name = "Fraction")+
+                       name = "")+
+# guides (fill = guide_legend (title.position = "right"))+
+  
     labs(x = "", y =  "")+
-  ggtitle("Pigment") +
+  ggtitle("Chl-a fraction") +
   theme (plot.title = element_text(size = 12, vjust = -8, hjust = 0.01))+
     scale_x_discrete(limits=c("T0", "LT_noFe","LT_Fe", "HT_noFe", "HT_Fe"))+
     facet_grid(.~ bioassay, scales = "free_x") + 
@@ -434,7 +436,7 @@ fig2_pigmentmeans <-ggplot(pigment_means, aes(x = treatment2,
     theme(strip.background =element_rect(fill="white"), 
         strip.text = element_text(size = 11, face = "bold"),
         legend.box.margin=margin(l=-10))+
-         theme(plot.margin=grid::unit(c(-2.5,0,0,0), "mm")) 
+        theme(plot.margin=grid::unit(c(-2.5,0,0,0), "mm")) 
 
 fig2_pigmentmeans
 
@@ -540,7 +542,7 @@ fig2_proteintopmeans <- ggplot(filter(allgroups_aggregated_means, grepl ("Bacill
   scale_fill_gradientn(colours = c("deepskyblue2","white","darkred"),
                        values = rescale(c(0.0000001,0.22,0.5)),
                        guide = "colorbar", limits=c(0.0000001,0.5),
-                       name = "Fraction")+
+                       name = "")+
    labs(x = "", y = "")+
    scale_x_discrete(limits=c("T0", "LT_noFe","LT_Fe", "HT_noFe", "HT_Fe"))+
    theme(axis.text.x=element_blank(),
@@ -548,7 +550,7 @@ fig2_proteintopmeans <- ggplot(filter(allgroups_aggregated_means, grepl ("Bacill
         panel.border = element_blank(),
         panel.background = element_blank(), 
         axis.ticks  = element_blank()) +
-    ggtitle("Protein") +
+    ggtitle("Protein fraction") +
   theme (plot.title = element_text(size = 12, vjust = -8, hjust = 0.01))+
      #guides(fill = guide_colourbar(barwidth = 1, barheight = 8)) +
   facet_grid(.~ bioassay)+
@@ -566,7 +568,7 @@ fig2_proteinbottommeans <- ggplot(filter(allgroups_aggregated_means, grepl ("Din
   scale_fill_gradientn(colours = c("deepskyblue2","white","darkred"),
                        values = rescale(c(0.0000001,0.002,.034)),
                        guide = "colorbar", limits=c(0.0000001,0.034),
-                       name = "Fraction")+
+                       name = "")+
    labs(x = "", y = "")+
    scale_x_discrete(limits=c("T0", "LT_noFe","LT_Fe", "HT_noFe", "HT_Fe"), 
                       labels = c("T0", "LT -Fe", "LT +Fe", "HT -Fe", "HT +Fe"))+
@@ -646,7 +648,7 @@ ggplot(filter (allgroups_aggregated, grepl (taxonomicgroup, taxon)),
     ylim (0,NA)
 }
 
-pennategroup <- protein_taxgroups("Pennate", "Pennate diatoms") + theme(axis.text.x = element_blank()) + ggtitle("Fraction of total protein")
+pennategroup <- protein_taxgroups("Pennate", "Pennate diatoms") + theme(axis.text.x = element_blank()) + ggtitle("Protein fraction")
 centricgroup <- protein_taxgroups("Centric", "Centric diatoms") + theme(axis.text.x = element_blank()) 
 phaeogroup <- protein_taxgroups("Phaeocystis", "Phaeocystis") 
 ```
@@ -812,11 +814,6 @@ rightpanel <- plot_grid (NULL, NULL,
                     # "J", "",  "K", "")
                      align = "v")
 
-
-
- 
-
-
 #png("ps117_figure2_highres_20230421.png", width=20, height=10, units="in", res=900) 
 fig2 <- plot_grid (nmds, NULL, heatmaps, NULL, rightpanel, 
             ncol = 5,
@@ -824,11 +821,9 @@ fig2 <- plot_grid (nmds, NULL, heatmaps, NULL, rightpanel,
             rel_heights =  c(1,1,1,1,1),
             axis = "bt",
             align = "vh")
-
-
 #dev.off()
 
-#png("ps117_figure2_highres_20230507.png", width=20, height=10, units="in", res=900) 
+#png("ps117_figure2_highres_20230508.png", width=20, height=10, units="in", res=900) 
 ggdraw(fig2) + draw_plot (fig2_legendB, x = 0.245, y = 0.45, width = 0.0001, height = 0.001) +
                draw_plot (fig2_legendA, x = 0.25, y = 0.35, width = 0.0001, height = 0.001) 
                 
@@ -1263,8 +1258,6 @@ ggplot(filter (compartment_aggregated_total, grepl ("^chloro$|^ribosome$|^rubisc
 #         legend.position = "none") 
 ```
 
-
-
 NP drawdown and PON POP ratio
 ```{r}
 #the drawdown is calculated between day 4 and day 8 based on the NO3 and PO4 plots in Fig 1, showing when the incubations are acclimated. 
@@ -1292,57 +1285,83 @@ npdrawdwon <- ggplot((filter(npdrawdown, grepl("8", daycount))) , aes(
                       values = c(19,1,5)) +
   scale_x_discrete(limits=c("noFe","Fe"), 
                    labels = c("-Fe", "+Fe"))+
+  ggtitle("  ") +
   theme_bw()+
   theme(axis.text=element_text(face = "bold", size = 12, color = "black"),
         axis.title.x=element_text(size = 14,face = "bold", color = "black"), 
-        axis.title.y=element_text(size=16, color = "black"), 
+        axis.title.y=element_text(size=13, color = "black"), 
         strip.background =element_rect(fill = "white"),
         strip.text.x = element_text(size = 12, face = "bold"),
+        axis.text.x = element_blank(),
         legend.position = "none") +
-   ylim(0,20)
+   ylim(0,20) + 
+   geom_hline (aes(yintercept = 16), col = "black", lty = 2, lwd=0.6 )
+
 
  
 particulatenp <- T0_T8_FenoFe( ((1000*PON_uM)/POP_nM), PON:POP~~(M:M)) + 
                  expand_limits(y = 0) +
                  scale_x_discrete(limits=c("T0","noFe","Fe"), 
                                   labels = c("T0", "-Fe", "+Fe"))+
-                 theme(axis.title.y=element_text(size=16, color = "black"))
+                 theme(axis.title.y=element_text(size=14, color = "black")) + 
+     geom_hline (aes(yintercept = 16), col = "black", lty = 2, lwd=0.6 )
+
+```
+
+NP from literature (prelim data)
+```{r}
+alldata <- read.csv("D:/School/PhD/Prelim/temp-nutr/LJ_prelim_data_20221206.csv")
+#alldata$limitation  <- paste(alldata$NO3_lim, alldata$PO4_lim)
+#alldata2 <- filter(alldata, !grepl("y",limitation))
+
+stoik_temp <- function (ratio, hline, yaxislabel) {
+    ggplot(filter(alldata, grepl("polar",provenance)), aes(
+    x = temperature,
+    y = {{ratio}}))+
+  #  stat_summary(fun = mean, geom = "point", show.legend = T, size = 4, stroke = 1.5, alpha = 0.65)+
+  # stat_summary(fun.data =  mean_se, geom = "errorbar", size = 1, width = 0.1)+
+  geom_point(size  = 1.5, alpha = 0.6, stroke = 1.1, shape = 4) +
+    theme_bw() +
+    ylab (substitute(yaxislabel)) +
+    xlab (expression("Temperature (°C)")) +
+    theme(axis.text=element_text(face = "bold", size = 12, color = "black"),
+        axis.title.x=element_text(size = 14,face = "bold", color = "black"), 
+        axis.title.y=element_text(size=14, color = "black"), 
+        strip.background =element_rect(fill = "white"),
+        strip.text.x = element_text(size = 10, face = "bold"),
+        legend.position = "none") +
+ geom_hline (aes(yintercept = hline), col = "black", lty = 2, lwd=0.6 )}
+
+#stoik_temp(NP_MM, 16, N:P~~~(M:M)) 
+ metaanaNP <- stoik_temp(NP_MM, 16, N:P~~~(M:M)) + facet_wrap(.~ type) + theme ( legend.position = "none")
+
+# plot_grid(NP_groups, NP_all,
+#               labels = c("A", "B"), 
+#            ncol = 1, 
+#           rel_heights = c(1.5,1),
+#           align = "vh")
 ```
 
 
 Figure 3 plot
 ```{r}
-A <- plot_grid (a, d, g, 
-                b, e, h, 
-                c, f, i,
-                labels = c("A", "D", "G",
-                           "B", "E", "H", 
-                           "C", "F", "I"),
-                
-                ncol=3,
-                align = "v")
- 
-B <- plot_grid (npdrawdwon, particulatenp, 
-                labels = c("J", "K"),
-                ncol = 1,
-                rel_heights = c(1,1),
-                align = "v")
+A <- plot_grid (a, NULL, d, NULL, g, NULL, npdrawdwon, 
+           b, NULL, e, NULL, h, NULL, particulatenp,
+           c, NULL, f, NULL, i, NULL, metaanaNP,
+           rel_widths = c(1,0.02,1,0.02,1,0.06,1),
+           labels = c("A", "", "D", "", "G", "", "J",
+                      "B", "",  "E", "", "H", "", "K",
+                      "C", "",  "F", "", "I", "", "L"),
+           ncol=7,
+          align = "vh", axis ="b")
 
+png("ps117_figure3_highres_20230508.png", width=19, height=10, units="in", res=900) 
 
-#png("ps117_figure3_highres_20230507.png", width=17, height=8, units="in", res=900) 
-
-plot_grid (A, NULL, B, vertical_legend, ncol =4 , 
-           rel_widths = c(3,0.05, 1, 0.22), align = "v", axis = "bt", 
-           rel_heights = c(1,1,1, 0.5))
-
-#dev.off()
+plot_grid (A, vertical_legend, ncol =  2, 
+           rel_widths = c(4, 0.2), 
+           rel_heights = c(1,0.5))
+dev.off()
 ```
-
-
-
-
-
-
 
 
 
@@ -1679,8 +1698,6 @@ plot_grid (x, vertical_legend,
 ```
 
 
-
-
 RA plots - I don't think these will make it into the paper 
 ```{r}
 # make list of labels of interest for RA plot  
@@ -1744,28 +1761,19 @@ CA_pennate <- protein_clusters ("pennate", "CA_clust_655", protein = c("CA_clust
 CA_phaeo <- protein_clusters ("Phaeo", "CA_clust_655", protein = c("CA_clust_655"), shape = c(19,15)) + ggtitle ("Phaeocystis - clust_655") + theme(legend.position = "none")
 
 #protein_clusters ("pennate", "Cation Efflux protein", protein = c("Cation Efflux protein"), shape = c(19,15)) look into efflux proteins
-
 #protein_clusters_hm ("centric|pennate", "Carbonic|CA", "BA1")
-
 #protein_clusters_hm ("centric|pennate", "Carbonic|CA", "BA2")
-
 #Maybe look atr SLC4 ? 
 ```
-
 
 plot
 ```{r}
 plot_grid( metals_Cd,  CA_centric,  
            CA_pennate, CA_phaeo, 
-          nrow = 4, 
-        
-          align = 'hv')
-         
+           nrow = 4, 
+           align = 'hv')
 #and heatmap
 ```
-
-
-
 
 #Other things to include
 fasciclin (supplement ? )
@@ -1783,8 +1791,6 @@ silicon <- filter(norm_proteomicsdata, grepl('clust_202 |clust_19688',cluster)) 
 #https://academic.oup.com/plcell/article/12/3/419/6008767
 #some proteases function to stabalize the Mn cluster or keep the Mn cluster good and going. So if we have an increase in Mn cluster proteins, we'll need more proteases to maintain these proteins. 
 ```
-
-
 
 
 #Misc 
