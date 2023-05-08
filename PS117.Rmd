@@ -55,7 +55,6 @@ nonproteindata_long <- melt (nonproteindata, id.vars = c(1:15, 17))
 
 #import protein data
 proteindata_unnorm <- read.csv("all_ps117_taxon-function_peptides_non-normalized_injections-means_20230324.csv", header = T)
-
 #arrange the 'uniq_cluster' annotations alphabetically in each row to reduce redundancies. 
 proteindata_unnorm$uniq_cluster <- sapply(lapply(strsplit(proteindata_unnorm$uniq_cluster, split = ",\\s*"), sort), paste, collapse = ", ") 
 
@@ -90,7 +89,7 @@ T0_T8_FenoFe <- function(yaxis, yaxislabel) {
   scale_x_discrete(limits = c("T0","noFe","Fe"), 
                    #labels = c("T0", "T8(-Fe)", "T8(+Fe)"))+
                   #labels = expression(bold("T0"), bold("T8")[~-Fe], bold("T8")[~+Fe]))+
-                  labels = expression(bold("T0"), bold("T8")~"(-Fe)", bold("T8")~"(+Fe)"))+
+                  labels = expression(bold("T0"), bold("-Fe")~"(T8)", bold("+Fe")~"(T8)"))+
 
 
   xlab(expression ("")) +
@@ -165,10 +164,10 @@ vertical_legend <- ggplot(filter (nonproteindata, grepl ("T0|T8", full_treatment
 
 vertical_legend <- get_legend(vertical_legend)
 vertical_legend <- as_ggplot(vertical_legend)
-vertical_legend
+#vertical_legend
 ```
 
-#Figure 1 - 2023-04-17
+#Figure 1 - 2023-05-07
 - Map of Antarctica showing bioassay sites - 2023-04-20
 ```{r}
 library(ggOceanMaps)
@@ -229,13 +228,13 @@ inset <- ggplot(filter (nonproteindata_long, !grepl ("0.35", value) & grepl("DFe
        y = value))+
        stat_summary(fun = mean, geom = "bar", size = 4, fill = "grey60")+
        stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, size = 1, width = 0.1) +
-       labs(x = expression (""), y = expression ("In situ (nM)"))+
+       labs(x = expression (""), y = expression ("In situ concentration (nM)"))+
        facet_wrap(~bioassay)+
        theme_bw()+
        scale_x_discrete(labels=c('DFe', 'DMn'))+
     theme(axis.text=element_text(face = "bold", size = 12, color = "black"),
         axis.title.x=element_text(size = 14,face = "bold", color = "black"), 
-        axis.title.y=element_text(size=16, color = "black"), 
+        axis.title.y=element_text(size=15, color = "black"), 
         strip.background =element_rect(fill = "white"),
         strip.text.x = element_text(size = 12, face = "bold"))+
      ylim(0,0.2) 
@@ -314,17 +313,63 @@ x <- plot_grid(NULL, NULL, fvfm, NULL, no3,
 y <- ggdraw (x) + draw_plot (map, x = -0.04, y = 0.49, width = 0.35, height = 0.5)  +
           draw_plot (maplegend , x = 0.09, y= 0.37, width = 0.1, height = 0.1)
 
-#png("ps117_figure1_highres_20230421.png", width=19.2, height=9.4, units="in", res=900) 
+png("ps117_figure1_highres_20230507.png", width=19.2, height=9.4, units="in", res=900) 
 plot_grid(y, vertical_legend, 
                ncol = 2, 
                rel_widths = c(1, 0.05), 
                rel_heights = c(1, 0.5))
-#dev.off()
+dev.off()
 ```
 
 
+#Figure 2 - 2023-05-07
+After making all the NMDS analysis and combining the results, make nmds plots 2023-04-21 (see chunks fig2nmdsA,fig2nmdsB,fig2nmdsC... below for calculations)
+```{r}
+nmdsplotdata <- read.csv ("ps117_nmds_20230421.csv")
 
-#Figure 2 - 2023-03-09
+nmdsplots <- function (nmdsdata, title) {
+          ggplot((filter (nmdsplotdata, grepl (nmdsdata, analysis))), aes(x = NMDS1, y = NMDS2))+
+          geom_point(size = 3, alpha = 0.75, stroke = 1.2, 
+                    aes(fill = temperature_treatment,
+                    shape = bioassaytempfe,
+                    color = temperature_treatment))+
+          scale_shape_manual(values = c("BA1_T0_T0" = 1, 
+                                        "BA1_LT_noFe" = 1,
+                                        "BA1_LT_Fe" = 19,
+                                        "BA1_HT_Fe" = 19,
+                                        "BA1_HT_noFe" = 1, 
+                                        "BA2_T0_T0" = 2, 
+                                        "BA2_LT_noFe" = 2,
+                                        "BA2_LT_Fe" = 17,
+                                        "BA2_HT_Fe" = 17,
+                                        "BA2_HT_noFe" =2 ))+
+          scale_color_manual(values = c("HT" = "darkorange", "LT" = "black", "T0" = "purple"))+
+          scale_fill_manual(values = c("HT" = "darkorange", "LT" = "black", "T0" = "purple"), guide = FALSE) +
+          ggtitle({title})+
+          theme(axis.text = element_text(colour = "black", size = 10, face = "bold"), 
+                axis.title = element_text(face = "bold", size = 12), 
+                legend.position = "none", 
+                panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+                legend.key=element_blank(), 
+                plot.title = element_text(vjust = -7, hjust = 0.01))
+}
+
+
+
+#library(ggalt) (to make highlighted groupings)
+
+peptide_nmds <- nmdsplots ("peptide", "Protein") #+ geom_encircle(aes (fill = bioassay), 
+                                                 #s_shape = 0.5,alpha = 0.2) 
+                                
+fc_nmds <- nmdsplots ("FC", "Flow Cytometry") #+ geom_encircle(aes (fill = bioassay), 
+                                                 #s_shape = 0.5,alpha = 0.2) 
+
+pigment_nmds <- nmdsplots ("pigm", "Pigment") #+ geom_encircle(aes (fill = bioassay), 
+                                                  #s_shape = 0.5,alpha = 0.2) 
+
+```
+
+
 - Pigments heatmap
 ```{r}
 pigment_fract <- nonproteindata [c(15,62:67)] #use the 'fract' columns of all groups 
@@ -523,7 +568,8 @@ fig2_proteinbottommeans <- ggplot(filter(allgroups_aggregated_means, grepl ("Din
                        guide = "colorbar", limits=c(0.0000001,0.034),
                        name = "Fraction")+
    labs(x = "", y = "")+
-   scale_x_discrete(limits=c("T0", "LT_noFe","LT_Fe", "HT_noFe", "HT_Fe"))+
+   scale_x_discrete(limits=c("T0", "LT_noFe","LT_Fe", "HT_noFe", "HT_Fe"), 
+                      labels = c("T0", "LT -Fe", "LT +Fe", "HT -Fe", "HT +Fe"))+
    theme(axis.text.x=element_text(face = "bold", size = 11, color = "black", vjust = 1.2, hjust = 1,  angle = 45),
         axis.text.y=element_text(face = "bold", size = 11, color = "black"),
         panel.border = element_blank(),
@@ -536,158 +582,6 @@ fig2_proteinbottommeans <- ggplot(filter(allgroups_aggregated_means, grepl ("Din
         legend.box.margin=margin(l=-10)) + 
   theme(plot.margin=grid::unit(c(0,0,0,0), "mm")) 
 fig2_proteinbottommeans
-```
-
-The vegan package displays 'species' and 'sites'. The sites are the treatments, the 'species' are the variables (pigments, FC-groups, proteomics species etc) 
-
-First, make NMDS analyses from peptide, FC and pigment data. No need to re-run this! 
-Peptide NMDS -  2023-03-026 
-```{r}
-protein_nmds <- proteindata_unnorm [c(1, 40:69)]
-
-protein_nmds <- melt(protein_nmds, id.vars=c("peptide")) %>%
-             rename(treatment = variable) %>%
-             rename(unnorm_abundance = value )
-sum(protein_nmds$unnorm_abundance) #this should equal 1.893E13 (total abundance of all peptides for all samples)
-
-#normalize the peptide abundances for within each sample, irrespective of taxonomy
-protein_nmds <- protein_nmds %>% #this creates a new column of normalized protein abundances grouped by treatment   
-  group_by(treatment) %>% 
-  mutate(norm_abundance = unnorm_abundance / sum(unnorm_abundance)) %>% 
-  ungroup()
-
-sum(protein_nmds$norm_abundance) #this should = 30 after normalization (number of replicates)
-
-protein_nmds2 <- dcast(protein_nmds, treatment~peptide, fun.aggregate = sum,  value.var = "norm_abundance") #this creates MANY columns
-
-protein_nmds2 <- protein_nmds2 %>% separate(treatment, into=c("bioassay", "timepoint" ,"temperature_treatment", "iron_treatment", "replicate"), sep = "_")
-
-protein_nmds3 = protein_nmds2 [c(6:37477)] 
-
-protein_nmds3 = as.matrix(protein_nmds3)
-
-dimcheckMDS(protein_nmds3,
-  distance = "bray",
-  k = 4,
-  trymax = 1000,
-  autotransform = TRUE)
-
-set.seed(123)
-
-nmds_protein = metaMDS(protein_nmds3, try = 1000, trymax = 1000, k = 2, distance = "bray") # try = 500, trymax = 500
-nmds_protein
-scores(nmds_protein, display = "sites")
-
-
-stressplot(nmds_protein, p.col = "black", l.col = "blue", title("Peptides")) #for the suplement
-
-data.scores_protein <- as.data.frame(scores(nmds_protein, "sites")) #can select sites (treatments) or species (variable)
-
-data.scores_protein$temperature_treatment <- protein_nmds2$temperature_treatment
-data.scores_protein$iron_treatment <- protein_nmds2$iron_treatment
-data.scores_protein$bioassay <- protein_nmds2$bioassay
-
-data.scores_protein$bioassaytempfe <- paste(data.scores_protein$bioassay, data.scores_protein$temperature_treatment,data.scores_protein$iron_treatment, sep = "_")
-```
-
-Flow cytometry NMDS - 2023-03-26
-```{r}
-FC <- nonproteindata [c(15,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97,99,101,103,105, 107,109,111,113)] %>% na.omit() %>% separate(full_treatment_name, c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate")) 
-
-FC_nmds <- FC [c(6:28)] 
-
-FC_nmds = as.matrix(FC_nmds)
-
-set.seed(123)
-nmds_FC = metaMDS(FC_nmds, try = 10000, distance = "bray") # try = 500, trymax = 500
-nmds_FC
-
-data.scores_FC <- as.data.frame(scores(nmds_FC, "sites"))
-stressplot(nmds_FC, p.col = "black", l.col = "blue", title("Flow Cytometry")) #for the suplement
-
-data.scores_FC$temperature_treatment <- FC$temperature_treatment
-data.scores_FC$iron_treatment <- FC$iron_treatment
-data.scores_FC$bioassay <- FC$bioassay
-
-data.scores_FC$bioassaytempfe <- paste(data.scores_FC$bioassay, data.scores_FC$temperature_treatment,data.scores_FC$iron_treatment, sep = "_")
-```
-
-Pigment NMDS - 2023-03-26 
-```{r}
-pigment_nmds <- nonproteindata [c(15,49:54)] %>% na.omit() %>% separate(full_treatment_name, c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate")) 
-
-pigment_nmds2 <- pigment_nmds [c(6:11)] 
-
-pigment_nmds2 = as.matrix(pigment_nmds2)
-
-set.seed(123)
-nmds_pigment = metaMDS(pigment_nmds2, try = 1000, distance = "bray") # try = 500, trymax = 500
-nmds_pigment
-
-data.scores_pigment <- as.data.frame(scores(nmds_pigment, "sites"))
-stressplot(nmds_pigment, p.col = "black", l.col = "blue", title("Pigments")) #for the suplement
-
-data.scores_pigment$temperature_treatment <- pigment_nmds$temperature_treatment
-data.scores_pigment$iron_treatment <- pigment_nmds$iron_treatment
-data.scores_pigment$bioassay <- pigment_nmds$bioassay
-
-data.scores_pigment$bioassaytempfe <- paste(data.scores_pigment$bioassay, data.scores_pigment$temperature_treatment,data.scores_pigment$iron_treatment, sep = "_")
-```
-
-Then combine all three analyses outputs into one file for plotting - 20220421
-```{r}
-#data.scores_FC$analysis <- "FC"
-#data.scores_pigment$analysis <- "pigment"
-#data.scores_protein$analysis <- "peptide"
-
-#ps117_nmds_20230421 <- rbind (data.scores_FC, data.scores_pigment, data.scores_protein)
-#write.csv(ps117_nmds_20230421, "ps117_nmds_20230421.csv", row.names = F)
-```
-
-After making all the NMDS analysis and combining the results, make nmds plots 2023-04-21
-```{r}
-nmdsplotdata <- read.csv ("ps117_nmds_20230421.csv")
-
-nmdsplots <- function (nmdsdata, title) {
-          ggplot((filter (nmdsplotdata, grepl (nmdsdata, analysis))), aes(x = NMDS1, y = NMDS2))+
-          geom_point(size = 3, alpha = 0.75, stroke = 1.2, 
-                    aes(fill = temperature_treatment,
-                    shape = bioassaytempfe,
-                    color = temperature_treatment))+
-          scale_shape_manual(values = c("BA1_T0_T0" = 1, 
-                                        "BA1_LT_noFe" = 1,
-                                        "BA1_LT_Fe" = 19,
-                                        "BA1_HT_Fe" = 19,
-                                        "BA1_HT_noFe" = 1, 
-                                        "BA2_T0_T0" = 2, 
-                                        "BA2_LT_noFe" = 2,
-                                        "BA2_LT_Fe" = 17,
-                                        "BA2_HT_Fe" = 17,
-                                        "BA2_HT_noFe" =2 ))+
-          scale_color_manual(values = c("HT" = "darkorange", "LT" = "black", "T0" = "purple"))+
-          scale_fill_manual(values = c("HT" = "darkorange", "LT" = "black", "T0" = "purple"), guide = FALSE) +
-          ggtitle({title})+
-          theme(axis.text = element_text(colour = "black", size = 10, face = "bold"), 
-                axis.title = element_text(face = "bold", size = 12), 
-                legend.position = "none", 
-                panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
-                legend.key=element_blank(), 
-                plot.title = element_text(vjust = -7, hjust = 0.01))
-}
-
-
-
-library(ggalt)
-
-peptide_nmds <- nmdsplots ("peptide", "Protein") + geom_encircle(aes (fill = bioassay), 
-                                                 s_shape = 0.5,alpha = 0.2) 
-                                
-fc_nmds <- nmdsplots ("FC", "Flow Cytometry") + geom_encircle(aes (fill = bioassay), 
-                                                 s_shape = 0.5,alpha = 0.2) 
-
-pigment_nmds <- nmdsplots ("pigm", "Pigment") + geom_encircle(aes (fill = bioassay), 
-                                                  s_shape = 0.5,alpha = 0.2) 
-
 ```
 
 Normalized diatom and Phaeocystis protein abundance - 2023-03-10 
@@ -721,182 +615,81 @@ allgroups_aggregated <- allgroups_aggregated %>%
   mutate(tempfe_treatment = paste(temperature_treatment, iron_treatment, sep = "_")) %>%
   mutate(tempfe_treatment = str_replace(tempfe_treatment, "T0_T0", "T0"))
 
-centricgroup <- ggplot ((filter(allgroups_aggregated, grepl("Centric", taxon))), aes(
-  x = tempfe_treatment,
-  y = norm_abundance)) +  
-  stat_summary(fun = mean, geom = "point", show.legend = T, size = 4, alpha =0.7,  position= position_dodge(width=0.4))+
-  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, size = 1, width = 0.1, position =     
-               position_dodge(width=0.4))+   facet_grid(.~ bioassay )+
-  theme_bw()+
-  labs (x = "", y =  (expression(paste(""))))+
-  ggtitle("Centric Diatoms") +
-  scale_x_discrete(limits=c("T0", "LT_noFe","LT_Fe", "HT_noFe", "HT_Fe"))+
-  theme(axis.text.x= element_blank(),
-        axis.title.y=element_text(size=12,face = "bold", color = "black"), 
-        axis.text.y=element_text(face = "bold", size = 11, color = "black"),
-        strip.background =element_rect(fill = "white"),
-        legend.text = element_text(size = 10, face = "bold"), 
-        strip.text.x = element_text(size = 11, face = "bold"), 
-        legend.position = "none", 
-        plot.title = element_text(size = 12))+
-   guides(shape = guide_legend(override.aes = list(size=5))) + 
-  ylim (0,NA) #+ #this locks the legend in position so it doesnt move around as you zoom in and out of the plot)
-  #theme(plot.margin = unit(c(0, 0, 0, 0), "cm"))
-centricgroup
-
-
-pennategroup <- ggplot ((filter(allgroups_aggregated, grepl("Pennate", taxon))), aes(
-  x = tempfe_treatment,
-  y = norm_abundance)) +  
-  ggtitle("Pennate Diatoms")+
-
-  stat_summary(fun = mean, geom = "point", show.legend = T, size = 4, alpha = 0.7 ,position= position_dodge(width=0.4))+
-  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, size = 1, width = 0.1, position =     
-               position_dodge(width=0.4))+   facet_grid(.~ bioassay )+
-  theme_bw()+
-  labs (x = "", y =  (expression(paste(""))))+
-  scale_x_discrete(limits=c("T0", "LT_noFe","LT_Fe", "HT_noFe", "HT_Fe"))+
-  theme(axis.text.x=element_blank(),
-        axis.title.y=element_text(size=14,face = "bold", color = "black"), 
-        axis.text.y=element_text(face = "bold", size = 11, color = "black"),
-        strip.background =element_rect(fill = "white"),
-        strip.text.x = element_text(size = 11, face = "bold"), 
-        plot.title = element_text(size = 12),
-        legend.position = "none") + 
-  ylim(0,NA) #+ 
-  #theme(plot.margin = unit(c(0, 0, 0, 0), "cm"))
-pennategroup
-
-phaeogroup <- ggplot ((filter(allgroups_aggregated, grepl("Phaeocystis", taxon))), aes(
-  x = tempfe_treatment,
-  y = norm_abundance)) +  
-  stat_summary(fun = mean, geom = "point", show.legend = T, size = 4,  position= position_dodge(width=0.4), alpha = 0.7)+
-  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, size = 1, width = 0.1, position =     
-               position_dodge(width=0.4))+   facet_grid(.~ bioassay )+
-  theme_bw()+
-  ggtitle("Phaeocystis") +
-  labs (x = "", y =  (expression(paste(""))))+
-  scale_x_discrete(limits=c("T0", "LT_noFe","LT_Fe", "HT_noFe", "HT_Fe"))+
-  theme(axis.text.x=element_text(face = "bold", size = 11, color = "black", vjust = 1, hjust = 1,  angle = 45),
-        axis.title.y=element_text(size=14,face = "bold", color = "black"), 
-        axis.text.y=element_text(face = "bold", size = 11, color = "black"),
-        strip.background =element_rect(fill = "white"),
-        strip.text.x = element_text(size = 11, face = "bold"), 
-        plot.title = element_text(size = 12),
-        legend.position = "none") + 
-  ylim (0, NA) #+ theme(plot.margin = unit(c(0, 0, 0, 0), "cm"))
-phaeogroup
-```
-
-Looking at photosynthesis proteins instead of all proteins - 2023-03-18. 
-Just an exploration, but something to consider. I do this a bit differently later. 
-```{r}
-#First make sure that all the ribosomal peptides are annotated as such, and that the groups are properly annotated 
-proteindata_unnorm$compartment <- ifelse (grepl("Chloroph|chloroph|Photosy|Phycobilisome", proteindata_unnorm$uniq_cluster_annotation), "photosynthesis", 
-                                  ifelse (grepl("photosynth|Photosynth|Porphyrin and chlorophyll metabolism", proteindata_unnorm$uniq_KO_pathway), "photosynthesis",                                                   proteindata_unnorm$uniq_cluster_annotation))
-
-
-# proteindata_unnorm$compartment <- ifelse (proteindata_unnorm$uniq_grpnorm_compartment == "chloro", "photosynthesis", 
-#                                          proteindata_unnorm$uniq_cluster_annotation)
-
-#test <- proteindata_unnorm [c(5, 21, 70, 21, 5,7, 13 )]      
-
-compartment <- proteindata_unnorm [c(70, 37, 40:69  )]                           
-
-compartment$taxon <- ifelse (compartment$F ==  "Polar-centric-Mediophyceae", "Centric diatom", 
-                 ifelse (compartment$F ==  "Radial-centric-basal-Coscinodiscophyceae", "Centric diatom", 
-                 ifelse (compartment$F ==  "Raphid-pennate", "Pennate diatom", 
-                 ifelse (compartment$F ==  "Araphid-pennate", "Pennate diatom", 
-                 ifelse (compartment$F ==  "Phaeocystaceae", "Phaeocystis",
-                                          compartment$F)))))
-
-compartment2 <- compartment [c(1,33,3:32)]
-
-compartment2 <- melt(compartment2, id.vars=c("compartment", "taxon")) %>%
-            rename(treatment = variable) %>%
-            rename(unnnorm_abundance = value)
-            #separate(treatment, into=c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"), sep = "_")
-
-
-#now, I calculated the contribution of diatom and haptophyte photosynthesis proteins to total photosynthesis proteins
-compartment3 <- filter (compartment2, grepl ("photosynthesis", compartment))
-
-compartment_aggregated_group  <- aggregate(compartment3$unnnorm_abundance, 
-                                  by=list(Category=compartment3$compartment, compartment3$treatment, compartment3$taxon), FUN=sum) %>%
-                        rename(unnorm_abundance = x) %>%
-                        rename(compartment = Category) %>%
-                        rename(treatment = Group.2) %>% 
-                        rename(taxon = Group.3) 
-
-compartment_aggregated_group  <- compartment_aggregated_group  %>% 
-                          mutate(groupnorm_abundance = unnorm_abundance / sum(unnorm_abundance)) 
-
-sum (compartment_aggregated_group$groupnorm_abundance)
-
-compartment_aggregated_group <- compartment_aggregated_group %>% 
-  separate(treatment, into=c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"), sep = "_")
-
-
-compartment_aggregated_group <- compartment_aggregated_group %>%
-  mutate(tempfe_treatment = paste(temperature_treatment, iron_treatment, sep = "_")) %>%
-  mutate(tempfe_treatment = str_replace(tempfe_treatment, "T0_T0", "T0"))
-
-ggplot ((filter(compartment_aggregated_group, grepl("Phaeocystis", taxon))), aes(
-  x = tempfe_treatment,
-  y = groupnorm_abundance)) +  
-  stat_summary(fun = mean, geom = "point", show.legend = T, size = 4, alpha =0.7,  position= position_dodge(width=0.4))+
-  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, size = 1, width = 0.1, position =     
-               position_dodge(width=0.4))+   facet_grid(.~ bioassay )+
-  theme_bw()+
-  labs (x = "", y =  (expression(paste(""))))+
-  ggtitle("Diatoms") +
-  scale_x_discrete(limits=c("T0", "LT_noFe","LT_Fe", "HT_noFe", "HT_Fe"))+
-  theme(axis.text.x=element_text(face = "bold", size = 11, color = "black", vjust = 1, hjust = 1,  angle = 45),
-        axis.title.y=element_text(size=14,face = "bold", color = "black"), 
-        axis.text.y=element_text(face = "bold", size = 11, color = "black"),
-        strip.background =element_rect(fill = "white"),
-        legend.text = element_text(size = 10, face = "bold"), 
-        strip.text.x = element_text(size = 11, face = "bold"), 
-        legend.position = "none", 
-        plot.title = element_text(size = 14))+
-       guides(shape = guide_legend(override.aes = list(size=5))) + 
-  ylim (0,NA) #this locks the legend in position so it doesnt move around as you zoom in and out of the plot)
-
-
-grpnorm_compartment <- function (compartments, taxon, yaxislabel) { 
-ggplot(filter (compartment_aggregated_group, grepl (compartments, compartment) & grepl (taxon, taxon_F)),
-       aes(x= iron_treatment,
-       y= groupnorm_abundance,
+protein_taxgroups <- function (taxonomicgroup, yaxislabel) { 
+ggplot(filter (allgroups_aggregated, grepl (taxonomicgroup, taxon)), 
+   aes(x= tempfe_treatment,
+       y= norm_abundance, 
        color = temperature_treatment, 
-       shape = iron_treatment)) + 
-  facet_wrap(~bioassay)+
-  stat_summary(fun = mean, geom = "point", size = 4, stroke = 1.5, alpha = 0.5)+
+       shape = iron_treatment))+
+  facet_wrap(~bioassay)+           
+  stat_summary(fun = mean, geom = "point", size = 3.5, stroke = 1.2, alpha = 0.5)+
   stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, linewidth = 1, width = 0.1)+
-  scale_color_manual(name="Temperature",
+  scale_x_discrete(limits=c("T0", "LT_noFe","LT_Fe", "HT_noFe", "HT_Fe"), 
+                   labels = c("T0", "LT -Fe", "LT +Fe", "HT -Fe", "HT +Fe"))+
+      scale_color_manual(name="Temperature",
                      breaks = c("LT","HT"),
                      labels = c("LT", "HT"),
                      values = c('black', 'darkorange2','black')) +
   scale_shape_manual(name = "Iron",
-                       breaks = c("Fe","noFe", "T0"), 
+                       breaks = c("Fe","noFe", "T0"),
                        labels = c("Fe", "noFe", "T0"),
                        values = c(19,1,5)) +
-  scale_x_discrete(limits=c("T0","noFe","Fe"), 
-                   labels = c("T0", "T8 (-Fe)", "T8 (+Fe)"))+
   xlab(expression ("")) +
   ylab (substitute(yaxislabel))+ 
-
   theme_bw()+
-  theme(axis.text=element_text(face = "bold", size = 12, color = "black"),
-        axis.title.x=element_text(size = 14,face = "bold", color = "black"), 
-        axis.title.y=element_text(size=16, color = "black"), 
+  theme(axis.text.y =element_text(face = "bold", size = 11, color = "black"),
+        axis.text.x=element_text(face = "bold", size = 11, color = "black", vjust = 1.2, hjust = 1,  angle = 45),
+        axis.title.y =element_text(size = 12,face = "bold", color = "black"), 
         strip.background =element_rect(fill = "white"),
         strip.text.x = element_text(size = 12, face = "bold"),
-        legend.position = "none") 
+        legend.position = "none") +
+    ylim (0,NA)
 }
 
-D <- grpnorm_compartment ("^chloro$", "Pennate di", atop ("Pennate diatom", paste ("ribosomal protein fraction"))) 
-E <- grpnorm_compartment ("^chloro$", "Centric di", atop ("Centric diatom", paste ("ribosomal protein fraction"))) 
-F <- grpnorm_compartment ("^chloro$", "Phaeocystis", atop ("Phaeocystis", paste ("ribosomal protein fraction"))) 
+pennategroup <- protein_taxgroups("Pennate", "Pennate diatoms") + theme(axis.text.x = element_blank()) + ggtitle("Fraction of total protein")
+centricgroup <- protein_taxgroups("Centric", "Centric diatoms") + theme(axis.text.x = element_blank()) 
+phaeogroup <- protein_taxgroups("Phaeocystis", "Phaeocystis") 
+```
+
+groups heatmap
+```{r}
+
+###
+#try to do this in a heatmap 
+
+compartment_aggregated_group_means <- aggregate(compartment_aggregated_group$groupnorm_abundance, by=list (compartment_aggregated_group$bioassay, compartment_aggregated_group$compartment, compartment_aggregated_group$timepoint, compartment_aggregated_group$temperature_treatment, compartment_aggregated_group$iron_treatment, compartment_aggregated_group$taxon_F), FUN=mean)
+  
+  rename (treatment = Group.1, 
+          bioassay = Group.2, 
+          class = Group.3, 
+          norm_abundance = x)
+
+
+compartment_aggregated_group_means$treatment2 <- paste (compartment_aggregated_group_means$Group.4, compartment_aggregated_group_means$Group.5, sep = "_")
+
+
+  
+ggplot(filter(compartment_aggregated_group_means, grepl ("Bacilla|Phaeocy", Group.6) & grepl ("^chloro$", Group.2)), 
+       aes (x = treatment2,  y = Group.6, fill= x))+ 
+  geom_tile(color = "black", lwd = 0.7) +
+  scale_fill_gradientn(colours = c("deepskyblue2","white","darkred"),
+                       values = rescale(c(0.05,0.4,.72)),
+                       guide = "colorbar", limits=c(0.05,0.72),
+                       name = "Fraction")+
+   labs(x = "", y = "") +
+   scale_x_discrete(limits=c("T0_T0", "LT_noFe","LT_Fe", "HT_noFe", "HT_Fe"))+
+   theme(axis.text.x=element_text(face = "bold", size = 11, color = "black", vjust = 1.2, hjust = 1,  angle = 45),
+        axis.text.y=element_text(face = "bold", size = 11, color = "black"),
+        panel.border = element_blank(),
+        panel.background = element_blank(), 
+        axis.ticks  = element_blank()) +
+  facet_grid(.~ Group.1)+
+  theme(strip.background =element_rect(fill="white"), 
+        strip.text = element_blank(), 
+        plot.margin=margin(b=0, unit="cm"), 
+        legend.box.margin=margin(l=-10)) + 
+  theme(plot.margin=grid::unit(c(0,0,0,0), "mm")) 
+
 ```
 
 Fig 2 legend  2023-03-13.
@@ -950,82 +743,209 @@ fig2_legendB
 
 ###
 #fig2legend <- ggdraw (legendB) + draw_plot (legendA, x = 0.32 , y = 0) 
-
-
-fig2legend <- ggdraw (legendA) + draw_plot (legendB, x = -0.1, y = 0.13) 
-fig2legend
+#fig2legend <- ggdraw (legendA) + draw_plot (legendB, x = -0.1, y = 0.13) 
+#fig2legend
 ```
 
 Figure 2 Plot : 2023-03-13
 ```{r}
-# nmds <- plot_grid (peptide_nmds, NULL, fc_nmds, NULL, pigment_nmds, fig2legend,
-#                   ncol=6, 
-#                   labels = c("A", "", "B", "","C", ""), 
-#                   rel_widths = c(1, 0.03, 1, 0.03, 1, 0.3), 
-#                   rel_heights = c(1,1,1,1,1, 0.3))
-# 
-# nmds <- plot_grid (nmds, NULL, 
-#            ncol = 1, 
-#           rel_heights = c(0.5,1))
-
 nmds <- plot_grid (pigment_nmds, fc_nmds, peptide_nmds,   NULL,
                   ncol=1, 
                   rel_heights = c(1,1,1,0.12),
                   labels = c("A", "B","C", ""))
 
-
-
-# plot_grid(nmds, fig2legend, 
-#           ncol = 2, 
-#           rel_widths = c(1,0.07), 
-#           rel_heights = c(1,0.001))
- 
 heatmaps <- plot_grid(fig2_pigmentmeans, fig2_proteintopmeans, fig2_proteinbottommeans, 
           ncol=1,
           labels = c("D","E", ""), 
           align = "v", 
           rel_heights = c(1.25,0.65,1.1))
 
+# photogroups <- plot_grid (pennatephotofraction, centricphotofraction, phaeophotofraction, 
+#                           align = 'v', 
+#                           ncol = 1)
+# 
+# y.grobphotogroups <- textGrob("Photosynthetic protein fraction", 
+#                    gp=gpar( fontsize=16, fontface="bold"), rot=90)
+# 
+# allphotogroups <- grid.arrange(arrangeGrob(photogroups, left = y.grobphotogroups))
+# 
+# labelz <- plot_grid (NULL, NULL, NULL, ncol=1, 
+#                     labels = c("F", "G", "H"))
+# allphotogroups_labeled <- plot_grid (labelz, allphotogroups,
+#            ncol = 2, rel_widths =c(0.05, 1))
+# 
+# allphotogroups_labeled
+# 
+# 
+# groups <-  plot_grid(pennategroup, centricgroup, phaeogroup,
+#             align='v',
+#             ncol =1, 
+#             rel_heights = c(1,1,1.25))                    
 
-groups <-  plot_grid(NULL, pennategroup, centricgroup, phaeogroup,
-            align='v',
-            ncol =1, 
-            rel_heights = c(0.05, 1,1,1.25))#                    labels = c("F", "G", "H"))
+#y.grob <- textGrob("Fraction of total protein abundance", 
+                   #gp=gpar( fontsize=16, fontface="bold"), rot=90, hjust = 0.5) #fontface="bold",
+#allgroups <- grid.arrange(arrangeGrob(groups, left = y.grob))
+#labelzz <- plot_grid (NULL, NULL, NULL, ncol=1, 
+                    #labels = c("I", "J", "K"))
 
-y.grob <- textGrob("Fraction of total protein abundance", 
-                   gp=gpar( fontsize=13, fontface="bold"), rot=90) #fontface="bold",
-allgroups <- grid.arrange(arrangeGrob(groups, left = y.grob))
-labelz <- plot_grid (NULL, NULL, NULL, ncol=1, 
-                    labels = c("F", "G", "H"))
+#allgroup_labeled <- plot_grid (labelzz, allgroups,
+          # ncol = 2, rel_widths =c(0.05, 1))
+#allgroup_labeled
 
-allgroup_labeled <- plot_grid (labelz, allgroups,
-           ncol = 2, rel_widths =c(0.05, 1))
-allgroup_labeled
+#plot_grid (allphotogroups_labeled, allgroup_labeled, ncol = 1, 
+                         #align = "v",  axis = "l")
+           
+rightpanel <- plot_grid (NULL, NULL, 
+           #NULL, pennatephotofraction, 
+           #NULL, centricphotofraction, 
+           #NULL, phaeophotofraction, 
+           NULL, pennategroup, 
+           NULL, centricgroup, 
+           NULL,  phaeogroup,
+           ncol =2, #0.05
+           rel_widths = c(0.05,1), rel_heights = c(0.05, 1.1,1,1.2), 
+          labels = c("", "",
+                     "F", "", 
+                     "G", "",
+                     "H", ""),
+                     #"I", "",
+                    # "J", "",  "K", "")
+                     align = "v")
 
-# #png("ps117_figure2_highres_20230420b.png", width=12, height=13, units="in", res=900) 
-# ggdraw (nmds) + draw_plot (heatmaps, x = 0, y = -0.01, width = 0.55, height = 0.66) + 
-#                 draw_plot (allgroup_labeled, x = 0.56, y = 0.0, width = 0.43, height = 0.65)  
-#dev.off()  
-  
+
+
+ 
+
 
 #png("ps117_figure2_highres_20230421.png", width=20, height=10, units="in", res=900) 
-fig2 <- plot_grid (nmds, NULL, heatmaps, NULL, allgroup_labeled, 
+fig2 <- plot_grid (nmds, NULL, heatmaps, NULL, rightpanel, 
             ncol = 5,
-            rel_widths = c(0.7, 0.05, 1, 0.05, 0.7),
+            rel_widths = c(0.7, 0.05, 1.2, 0.05, 1),
             rel_heights =  c(1,1,1,1,1),
             axis = "bt",
             align = "vh")
+
+
 #dev.off()
 
-png("ps117_figure2_highres_20230423.png", width=20, height=10, units="in", res=900) 
-ggdraw(fig2) + draw_plot (fig2_legendB, x = 0.295, y = 0.45, width = 0.0001, height = 0.001) +
-               draw_plot (fig2_legendA, x = 0.3, y = 0.35, width = 0.0001, height = 0.001) 
-
-              #draw_plot (fig2_legendB, x = 0.05, y = 0.97, width = 0.0001, height = 0.001) +
-              # draw_plot (fig2_legendA, x = 0.05, y = 0.6, width = 0.0001, height = 0.001) 
+#png("ps117_figure2_highres_20230507.png", width=20, height=10, units="in", res=900) 
+ggdraw(fig2) + draw_plot (fig2_legendB, x = 0.245, y = 0.45, width = 0.0001, height = 0.001) +
+               draw_plot (fig2_legendA, x = 0.25, y = 0.35, width = 0.0001, height = 0.001) 
                 
-dev.off()
+#dev.off()
 ```
+
+fig2nmdsA - The vegan package displays 'species' and 'sites'. The sites are the treatments, the 'species' are the variables (pigments, FC-groups, proteomics species etc) 
+First, make NMDS analyses from peptide, FC and pigment data. No need to re-run this! 
+Peptide NMDS -  2023-03-026 
+```{r}
+protein_nmds <- proteindata_unnorm [c(1, 40:69)]
+
+protein_nmds <- melt(protein_nmds, id.vars=c("peptide")) %>%
+             rename(treatment = variable) %>%
+             rename(unnorm_abundance = value )
+sum(protein_nmds$unnorm_abundance) #this should equal 1.893E13 (total abundance of all peptides for all samples)
+
+#normalize the peptide abundances for within each sample, irrespective of taxonomy
+protein_nmds <- protein_nmds %>% #this creates a new column of normalized protein abundances grouped by treatment   
+  group_by(treatment) %>% 
+  mutate(norm_abundance = unnorm_abundance / sum(unnorm_abundance)) %>% 
+  ungroup()
+
+sum(protein_nmds$norm_abundance) #this should = 30 after normalization (number of replicates)
+
+protein_nmds2 <- dcast(protein_nmds, treatment~peptide, fun.aggregate = sum,  value.var = "norm_abundance") #this creates MANY columns
+
+protein_nmds2 <- protein_nmds2 %>% separate(treatment, into=c("bioassay", "timepoint" ,"temperature_treatment", "iron_treatment", "replicate"), sep = "_")
+
+protein_nmds3 = protein_nmds2 [c(6:37477)] 
+
+protein_nmds3 = as.matrix(protein_nmds3)
+
+dimcheckMDS(protein_nmds3,
+  distance = "bray",
+  k = 4,
+  trymax = 1000,
+  autotransform = TRUE)
+
+set.seed(123)
+
+nmds_protein = metaMDS(protein_nmds3, try = 1000, trymax = 1000, k = 2, distance = "bray") # try = 500, trymax = 500
+nmds_protein
+scores(nmds_protein, display = "sites")
+
+
+stressplot(nmds_protein, p.col = "black", l.col = "blue", title("Peptides")) #for the suplement
+
+data.scores_protein <- as.data.frame(scores(nmds_protein, "sites")) #can select sites (treatments) or species (variable)
+
+data.scores_protein$temperature_treatment <- protein_nmds2$temperature_treatment
+data.scores_protein$iron_treatment <- protein_nmds2$iron_treatment
+data.scores_protein$bioassay <- protein_nmds2$bioassay
+
+data.scores_protein$bioassaytempfe <- paste(data.scores_protein$bioassay, data.scores_protein$temperature_treatment,data.scores_protein$iron_treatment, sep = "_")
+```
+
+fig2nmdsB - Flow cytometry NMDS - 2023-03-26
+```{r}
+FC <- nonproteindata [c(15,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97,99,101,103,105, 107,109,111,113)] %>% na.omit() %>% separate(full_treatment_name, c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate")) 
+
+FC_nmds <- FC [c(6:28)] 
+
+FC_nmds = as.matrix(FC_nmds)
+
+set.seed(123)
+nmds_FC = metaMDS(FC_nmds, try = 10000, distance = "bray") # try = 500, trymax = 500
+nmds_FC
+
+data.scores_FC <- as.data.frame(scores(nmds_FC, "sites"))
+stressplot(nmds_FC, p.col = "black", l.col = "blue", title("Flow Cytometry")) #for the suplement
+
+data.scores_FC$temperature_treatment <- FC$temperature_treatment
+data.scores_FC$iron_treatment <- FC$iron_treatment
+data.scores_FC$bioassay <- FC$bioassay
+
+data.scores_FC$bioassaytempfe <- paste(data.scores_FC$bioassay, data.scores_FC$temperature_treatment,data.scores_FC$iron_treatment, sep = "_")
+```
+
+fig2nmdsC - Pigment NMDS - 2023-03-26 
+```{r}
+pigment_nmds <- nonproteindata [c(15,49:54)] %>% na.omit() %>% separate(full_treatment_name, c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate")) 
+
+pigment_nmds2 <- pigment_nmds [c(6:11)] 
+
+pigment_nmds2 = as.matrix(pigment_nmds2)
+
+set.seed(123)
+nmds_pigment = metaMDS(pigment_nmds2, try = 1000, distance = "bray") # try = 500, trymax = 500
+nmds_pigment
+
+data.scores_pigment <- as.data.frame(scores(nmds_pigment, "sites"))
+stressplot(nmds_pigment, p.col = "black", l.col = "blue", title("Pigments")) #for the suplement
+
+data.scores_pigment$temperature_treatment <- pigment_nmds$temperature_treatment
+data.scores_pigment$iron_treatment <- pigment_nmds$iron_treatment
+data.scores_pigment$bioassay <- pigment_nmds$bioassay
+
+data.scores_pigment$bioassaytempfe <- paste(data.scores_pigment$bioassay, data.scores_pigment$temperature_treatment,data.scores_pigment$iron_treatment, sep = "_")
+```
+
+fig2nmdsD - Then combine all three analyses outputs into one file for plotting - 20220421
+```{r}
+#data.scores_FC$analysis <- "FC"
+#data.scores_pigment$analysis <- "pigment"
+#data.scores_protein$analysis <- "peptide"
+
+#ps117_nmds_20230421 <- rbind (data.scores_FC, data.scores_pigment, data.scores_protein)
+#write.csv(ps117_nmds_20230421, "ps117_nmds_20230421.csv", row.names = F)
+```
+
+
+
+
+
+
+
 
 Figure 2 - Individual replicates - supplement ? 
 ```{r}
@@ -1080,8 +1000,353 @@ ggplot(allgroupsbottom, aes( x = factor(treatmentrep, level = treatmentrep_order
 ```
 
 
+#Figure 3 -  2023-05-07
+Major protein groups , group normalized
+```{r}
+#Ribosomes, photosynthesis, rubisco
 
-#Figure 3 -  2023-03-29
+#chlorotest <- filter (proteindata_unnorm, grepl ("^ribosome$", compartment))
+
+proteindata_unnorm$compartment <- ifelse (proteindata_unnorm$uniq_cluster  ==  "unassigned_cluster", "ribosome", 
+                                  ifelse (proteindata_unnorm$uniq_grpnorm_compartment == "ribosomal", "ribosome",
+                                  ifelse (grepl("ribosom|Ribosom", proteindata_unnorm$uniq_cluster_annotation) ,  "ribosome",
+                                   
+                                  ifelse (proteindata_unnorm$uniq_KO_pathway  ==  "Photosynthesis", "chloro", 
+                                  ifelse (grepl("^clust_1820$|^clust_534$", proteindata_unnorm$uniq_cluster) ,  "chloro",
+                                  ifelse (grepl("^clust_891$", proteindata_unnorm$uniq_cluster) ,  "nitrogen",
+
+                                          
+                                  ifelse (grepl("^clust_129$|^clust_2490$|^clust_1820$|^clust_534$", proteindata_unnorm$uniq_cluster) ,  "rubisco",
+                                  ifelse (grepl("Hsp|hsp", proteindata_unnorm$uniq_cluster_annotation) ,  "HSP",
+                                  ifelse (grepl("ATP", proteindata_unnorm$uniq_cluster_annotation),  "ATP",
+                                              proteindata_unnorm$uniq_grpnorm_compartment))))))))) # proteindata_unnorm$uniq_cluster))) #
+
+
+compartment <- proteindata_unnorm [c(70, 37, 40:69  )]                           
+
+compartment <- melt(compartment, id.vars=c("compartment", "F")) %>%
+            rename(treatment = variable) %>%
+            rename(unnnorm_abundance = value) 
+            #separate(treatment, into=c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"), sep = "_")
+
+compartment$F <- ifelse (compartment$F ==  "Polar-centric-Mediophyceae", "Centric diatom", 
+                 ifelse (compartment$F ==  "Radial-centric-basal-Coscinodiscophyceae", "Centric diatom", 
+               #  ifelse (compartment$F ==  "Bacillariophyta_X", "Bacillariophyta", 
+                 ifelse (compartment$F ==  "Raphid-pennate", "Pennate diatom", 
+                 ifelse (compartment$F ==  "Araphid-pennate", "Pennate diatom", 
+                 ifelse (compartment$F ==  "Phaeocystaceae", "Phaeocystaceae",
+                                          compartment$F)))))
+
+#normalize to group 
+compartment_aggregated_group  <- aggregate(compartment$unnnorm_abundance, 
+                                  by=list(Category=compartment$compartment, compartment$treatment, compartment$F), FUN=sum) %>%
+                        rename(unnorm_abundance = x) %>%
+                        rename(compartment = Category) %>%
+                        rename(treatment = Group.2) %>% 
+                        rename(taxon_F = Group.3) 
+
+compartment_aggregated_group  <- compartment_aggregated_group  %>% 
+                          group_by(treatment,taxon_F) %>% 
+                          mutate(groupnorm_abundance = unnorm_abundance / sum(unnorm_abundance)) %>% 
+                          ungroup()
+
+compartment_aggregated_group <- compartment_aggregated_group %>% 
+  separate(treatment, into=c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"), sep = "_") %>%
+  mutate(tempfe_treatment = paste(temperature_treatment, iron_treatment, sep = "_")) %>%
+  mutate(tempfe_treatment = str_replace(tempfe_treatment, "T0_T0", "T0"))
+
+# 
+# fig3barplot <- function (compartments, taxon, yaxislabel) {
+#   ggplot(filter (compartment_aggregated_group, grepl (compartments, compartment) & grepl (taxon, taxon_F)),
+#        aes(x= tempfe_treatment,
+#        y= groupnorm_abundance,
+#        fill = compartment))+
+#   facet_wrap(~bioassay) +           
+#   stat_summary(fun = mean, geom = "bar", width=0.75,position=position_dodge(width=0.75), color = "black", alpha = 1)+
+#   stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, linewidth = 1, position=position_dodge(width=0.75), width = 0.2, color = "black") + 
+#   scale_fill_manual(name="Temperature",
+#                      breaks = c("chloro", "ribosome", "rubisco"),
+#                      values = c('#347235', '#368BC1', 'grey20')) +
+#   scale_x_discrete(limits=c("T0", "LT_noFe","LT_Fe", "HT_noFe", "HT_Fe"), 
+#                    labels = c("T0", "LT -Fe", "LT +Fe", "HT -Fe", "HT +Fe")) +
+#   xlab (expression(""))+ 
+#   ylab({{yaxislabel}}) +
+#   theme_bw()+
+#   theme(axis.text.y = element_text(face = "bold", size = 10, color = "black"),
+#         axis.title.y =element_text(size = 11,face = "bold", color = "black"), 
+#         axis.text.x=element_text(size = 11, color = "black", face = "bold"),
+#         strip.background =element_rect(fill = "white"),
+#         strip.text.x = element_text(size = 12, face = "bold"))  
+#     
+#   }
+# 
+# pennate <- fig3barplot("ribosome$|^chloro$|^rubisco$", "Pennate", "Fraction of pennate diatom protein") +theme (legend.position = "none")
+# centric <- fig3barplot("ribosome$|^chloro$|^rubisco$", "Centric", "Fraction of centric diatom protein")+theme (legend.position = "none")
+# phaeo <- fig3barplot("ribosome$|^chloro$|^rubisco$", "Phaeocys", "Fraction of Phaeocystis protein") +theme (legend.position = "none")
+# 
+# 
+# plot_grid (pennate, centric, phaeo,
+#                   ncol=1)
+               
+grpnorm_compartment <- function (compartments, taxon, yaxislabel) { 
+ggplot(filter (compartment_aggregated_group, grepl (compartments, compartment) & grepl (taxon, taxon_F)),
+       aes(x= iron_treatment,
+       y= groupnorm_abundance,
+       color = temperature_treatment, 
+       shape = iron_treatment)) + 
+  facet_wrap(~bioassay)+
+  stat_summary(fun = mean, geom = "point", size = 4, stroke = 1.5, alpha = 0.5)+
+  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, linewidth = 1, width = 0.1)+
+  scale_color_manual(name="Temperature",
+                     breaks = c("LT","HT"),
+                     labels = c("LT", "HT"),
+                     values = c('black', 'darkorange2','black')) +
+  scale_shape_manual(name = "Iron",
+                       breaks = c("Fe","noFe", "T0"), 
+                       labels = c("Fe", "noFe", "T0"),
+                       values = c(19,1,5)) +
+  scale_x_discrete(limits=c("T0","noFe","Fe"), 
+                   labels = c("T0", "-Fe", "+Fe"))+
+                 # labels = expression(bold("T0"), bold("T8")~"(-Fe)", bold("T8")~"(+Fe)"))+
+  xlab(expression ("")) +
+  ylab (substitute(yaxislabel))+ 
+
+  theme_bw()+
+  theme(axis.text=element_text(face = "bold", size = 12, color = "black"),
+        axis.title.x=element_text(size = 14,face = "bold", color = "black"), 
+        axis.title.y=element_text(size=16, color = "black"), 
+        strip.background =element_rect(fill = "white"),
+        strip.text.x = element_text(size = 12, face = "bold"),
+        legend.position = "none") 
+}
+
+
+#photosynthesis
+a <- grpnorm_compartment ("^chloro$", "Pennate di", "Pennate diatoms") +  # atop ("Pennate diatom", paste ("photosynthetic protein fraction"))) 
+  ylim(0,0.33) + 
+  theme (axis.text.x = element_blank())+
+  ggtitle("Photosynthetic protein fraction")
+
+b <- grpnorm_compartment ("^chloro$", "Centric di", "Centric diatoms") + 
+  ylim(0,0.33) + 
+  theme (axis.text.x = element_blank())
+
+c <- grpnorm_compartment ("^chloro$", "Phaeocys", "Phaeocystis") +
+  ylim(0,0.33)
+
+
+#rubisco
+d <- grpnorm_compartment ("^rubisco$", "Pennate di", "Pennate diatoms") +
+  ylim(0,0.07) + 
+  theme (axis.text.x = element_blank()) + 
+  theme(axis.title.y = element_blank())+ 
+  ggtitle("RuBisCo protein fraction")
+
+e <- grpnorm_compartment ("^rubisco$", "Centric di", "Centric diatoms") + 
+  ylim(0,0.35) + 
+  theme (axis.text.x = element_blank()) + 
+    theme(axis.title.y = element_blank())
+
+
+f <- grpnorm_compartment ("^rubisco$", "Phaeocys", "Phaeocystis")  +
+  ylim(0,NA) + 
+    theme(axis.title.y = element_blank())
+
+#ribosome
+g <- grpnorm_compartment ("^ribosome$", "Pennate di", "Pennate diatoms") +
+  ylim(0,0.225) + 
+  theme (axis.text.x = element_blank())+
+  ggtitle("Ribosomal protein fraction") + 
+  theme(axis.title.y = element_blank())
+
+
+h <- grpnorm_compartment ("^ribosome$", "Centric di", "Centric diatoms") +
+  ylim(0,0.225) + 
+  theme (axis.text.x = element_blank()) + 
+  theme(axis.title.y = element_blank())
+
+i <- grpnorm_compartment ("^ribosome$", "Phaeocys", "Phaeocystis") +
+  ylim(0,0.225) + 
+  theme(axis.title.y = element_blank())
+```
+
+major protein groups, non group normalized
+```{r}
+#First make sure that all the ribosomal peptides are annotated as such, and that the groups are properly annotated 
+proteindata_unnorm$compartment <- ifelse (proteindata_unnorm$uniq_cluster  ==  "unassigned_cluster", "ribosome", 
+                                  ifelse (proteindata_unnorm$uniq_grpnorm_compartment == "ribosomal", "ribosome",
+                                  ifelse (grepl("ribosom|Ribosom", proteindata_unnorm$uniq_cluster_annotation) ,  "ribosome",
+                                   
+                                  ifelse (proteindata_unnorm$uniq_KO_pathway  ==  "Photosynthesis", "chloro", 
+                                  ifelse (grepl("^clust_1820$|^clust_534$", proteindata_unnorm$uniq_cluster) ,  "chloro",
+                                  ifelse (grepl("^clust_891$", proteindata_unnorm$uniq_cluster) ,  "nitrogen",
+
+                                          
+                                  ifelse (grepl("^clust_129$|^clust_2490$|^clust_1820$|^clust_534$", proteindata_unnorm$uniq_cluster) ,  "rubisco",
+                                  ifelse (grepl("Hsp|hsp", proteindata_unnorm$uniq_cluster_annotation) ,  "HSP",
+                                  ifelse (grepl("ATP", proteindata_unnorm$uniq_cluster_annotation),  "ATP",
+                                              proteindata_unnorm$uniq_grpnorm_compartment))))))))) #
+
+compartment <- proteindata_unnorm [c(70, 37, 40:69  )]     
+
+compartment <- melt(compartment, id.vars=c("compartment", "F")) %>%
+            rename(treatment = variable) %>%
+            rename(unnnorm_abundance = value) 
+            #separate(treatment, into=c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"), sep = "_")
+
+
+#notmalize to total protein
+compartment_aggregated_total <- aggregate(compartment$unnnorm_abundance, 
+                                  by=list(Category=compartment$compartment, compartment$treatment), FUN=sum) %>%
+                        rename(unnorm_abundance = x) %>%
+                        rename(compartment = Category) %>%
+                        rename(treatment = Group.2) 
+                       
+compartment_aggregated_total <- compartment_aggregated_total %>% 
+                          group_by(treatment) %>% 
+                          mutate(totalproteinnorm_abundance = unnorm_abundance / sum(unnorm_abundance)) %>% 
+                          ungroup()
+
+compartment_aggregated_total <- compartment_aggregated_total %>% 
+  separate(treatment, into=c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"), sep = "_") %>%
+  mutate(tempfe_treatment = paste(temperature_treatment, iron_treatment, sep = "_")) %>%
+  mutate(tempfe_treatment = str_replace(tempfe_treatment, "T0_T0", "T0"))
+
+
+ggplot(filter (compartment_aggregated_total, grepl ("^chloro$|^ribosome$|^rubisco$", compartment)),
+       aes(x= tempfe_treatment,
+       y= totalproteinnorm_abundance,
+       fill = compartment))+
+  facet_wrap(~bioassay) +
+  stat_summary(fun = mean, geom = "bar", width=0.75,position=position_dodge(width=0.75), color = "black", alpha = 1)+
+  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, linewidth = 1, position=position_dodge(width=0.75), width = 0.2, color = "black") +
+  scale_fill_manual(name="Temperature",
+                     breaks = c("chloro", "ribosome", "rubisco"),
+                     values = c('#347235', '#368BC1', 'grey20')) +
+  scale_x_discrete(limits=c("T0", "LT_noFe","LT_Fe", "HT_noFe", "HT_Fe"),
+                   labels = c("T0", "LT -Fe", "LT +Fe", "HT -Fe", "HT +Fe")) +
+  xlab (expression(""))+
+  ylab("yah") +
+  theme_bw()+
+  theme(axis.text.y = element_text(face = "bold", size = 10, color = "black"),
+        axis.title.y =element_text(size = 11,face = "bold", color = "black"),
+        axis.text.x=element_text(size = 11, color = "black", face = "bold"),
+        strip.background =element_rect(fill = "white"),
+        strip.text.x = element_text(size = 12, face = "bold"))
+
+# ggplot(filter (compartment_aggregated_total, grepl ("^rubisco$", compartment)),
+#        aes(x= iron_treatment,
+#        y= totalproteinnorm_abundance,
+#        color = temperature_treatment, 
+#        shape = iron_treatment)) + 
+#   facet_wrap(~bioassay)+
+#   stat_summary(fun = mean, geom = "point", size = 4, stroke = 1.5, alpha = 0.5)+
+#   stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, linewidth = 1, width = 0.1)+
+#   scale_color_manual(name="Temperature",
+#                      breaks = c("LT","HT"),
+#                      labels = c("LT", "HT"),
+#                      values = c('black', 'darkorange2','black')) +
+#   scale_shape_manual(name = "Iron",
+#                        breaks = c("Fe","noFe", "T0"), 
+#                        labels = c("Fe", "noFe", "T0"),
+#                        values = c(19,1,5)) +
+#   scale_x_discrete(limits=c("T0","noFe","Fe"), 
+#                    labels = c("T0", "T8 (-Fe)", "T8 (+Fe)"))+
+#   xlab(expression ("")) +
+#   ylab (expression(atop ("Ribosome fraction of", paste ("total protein")))) + 
+#   theme_bw()+
+#   theme(axis.text=element_text(face = "bold", size = 12, color = "black"),
+#         axis.title.x=element_text(size = 14,face = "bold", color = "black"), 
+#         axis.title.y=element_text(size=16, color = "black"), 
+#         strip.background =element_rect(fill = "white"),
+#         strip.text.x = element_text(size = 12, face = "bold"),
+#         legend.position = "none") 
+```
+
+
+
+NP drawdown and PON POP ratio
+```{r}
+#the drawdown is calculated between day 4 and day 8 based on the NO3 and PO4 plots in Fig 1, showing when the incubations are acclimated. 
+npdrawdown <- read.csv("LJ_ps117_NO3_PO4_consumption.csv")
+npdrawdown$bioassayFe <- paste (npdrawdown$bioassay, npdrawdown$iron_treatment, sep = "_")
+
+npdrawdwon <- ggplot((filter(npdrawdown, grepl("8", daycount))) , aes(
+    x = iron_treatment,
+    y = (total_Ndrawdown/total_Pdrawdown),
+    shape = iron_treatment, 
+    color = temperature_treatment))+
+   stat_summary(fun = mean, geom = "point", show.legend = T, size = 4, stroke = 1.5, alpha = 0.65)+
+   stat_summary(fun.data =  mean_se, geom = "errorbar", size = 1, width = 0.1)+
+   ylab (expression (NO[3]:PO[4]~drawdown~~(M:M))) + 
+  xlab("") +
+   facet_wrap (~bioassay)+
+   
+   scale_color_manual(name="Temperature",
+                     breaks = c("LT","HT"),
+                     labels = c("LT", "HT"),
+                     values = c('black', 'darkorange2','black')) +
+  scale_shape_manual(name = "Iron",
+                      breaks = c("Fe","noFe", "T0"), 
+                      labels = c("+Fe", "-Fe", "T0"),
+                      values = c(19,1,5)) +
+  scale_x_discrete(limits=c("noFe","Fe"), 
+                   labels = c("-Fe", "+Fe"))+
+  theme_bw()+
+  theme(axis.text=element_text(face = "bold", size = 12, color = "black"),
+        axis.title.x=element_text(size = 14,face = "bold", color = "black"), 
+        axis.title.y=element_text(size=16, color = "black"), 
+        strip.background =element_rect(fill = "white"),
+        strip.text.x = element_text(size = 12, face = "bold"),
+        legend.position = "none") +
+   ylim(0,20)
+
+ 
+particulatenp <- T0_T8_FenoFe( ((1000*PON_uM)/POP_nM), PON:POP~~(M:M)) + 
+                 expand_limits(y = 0) +
+                 scale_x_discrete(limits=c("T0","noFe","Fe"), 
+                                  labels = c("T0", "-Fe", "+Fe"))+
+                 theme(axis.title.y=element_text(size=16, color = "black"))
+```
+
+
+Figure 3 plot
+```{r}
+A <- plot_grid (a, d, g, 
+                b, e, h, 
+                c, f, i,
+                labels = c("A", "D", "G",
+                           "B", "E", "H", 
+                           "C", "F", "I"),
+                
+                ncol=3,
+                align = "v")
+ 
+B <- plot_grid (npdrawdwon, particulatenp, 
+                labels = c("J", "K"),
+                ncol = 1,
+                rel_heights = c(1,1),
+                align = "v")
+
+
+#png("ps117_figure3_highres_20230507.png", width=17, height=8, units="in", res=900) 
+
+plot_grid (A, NULL, B, vertical_legend, ncol =4 , 
+           rel_widths = c(3,0.05, 1, 0.22), align = "v", axis = "bt", 
+           rel_heights = c(1,1,1, 0.5))
+
+#dev.off()
+```
+
+
+
+
+
+
+
+
+
+#Figure 4 -  2023-05-07
 Metal Plots - use only PON for Figure 3, and the rest in supplement
 ```{r}
 #nonproteindata$PFe57_nM <-  ifelse (nonproteindata$PFe57_nM ==  "0.454", NA, 
@@ -1101,7 +1366,6 @@ ZnPON <- T0_T8_FenoFe (PZn_nM/(PON_uM),PZn:PON~~(mM:M)) #+ scale_x_discrete(limi
 #metals_Co <- fig3_metals (PCo_nM, PCo:PON~(M:M))
 #metals_Ni <- fig3_metals (PNi_nM, PNi:PON)
 ```
-
 
 Massage DE and fold change analysis outputs - 2023-03-28
 ```{r}
@@ -1394,7 +1658,7 @@ plot_grid(x,y,
 
 
 plot
-```{r}
+
 x <- plot_grid(MnPOC, NA,  MnPON, 
                CuPOC, NA,  CuPON,
                ZnPOC, NA,  ZnPON,
@@ -1414,12 +1678,6 @@ plot_grid (x, vertical_legend,
 #dev.off()
 ```
 
-
-
-
-
-
-```
 
 
 
@@ -1472,241 +1730,6 @@ plot_grid(BA1, BA2,
 ```
 
 
-#Figure 5 - 2023-03-30
-This includes an exploration of ribosomes and chloroplast proteins
-N:P
-```{r}
-A <- T0_T8_FenoFe( ((1000*PON_uM)/POP_nM), PON:POP~~(M:M)) + scale_x_discrete(limits=c("T0","noFe","Fe"),labels = c("T0", "T8 (-Fe)", "T8 (+Fe)")) + xlab("") + expand_limits(y = 0) + theme(axis.title.y=element_text(size=16, color = "black"))
-
-npdrawdown <- read.csv("LJ_ps117_NO3_PO4_consumption.csv")
-npdrawdown$bioassayFe <- paste (npdrawdown$bioassay, npdrawdown$iron_treatment, sep = "_")
-
-npdrawdown$temperature <- ifelse (npdrawdown$bioassay ==  "BA1" & npdrawdown$temperature_treatment ==  "T0",  -0.3, 
-                         ifelse (npdrawdown$bioassay ==  "BA1" & npdrawdown$temperature_treatment ==  "HT",  1.7, 
-                         ifelse (npdrawdown$bioassay ==  "BA1" & npdrawdown$temperature_treatment ==  "LT",  -0.3, 
-                         ifelse (npdrawdown$bioassay ==  "BA2" & npdrawdown$temperature_treatment ==  "T0",  -1.4, 
-                         ifelse (npdrawdown$bioassay ==  "BA2" & npdrawdown$temperature_treatment ==  "HT",  1, 
-                         ifelse (npdrawdown$bioassay ==  "BA2" & npdrawdown$temperature_treatment ==  "LT",  -1, 
-                         "Other"))))))
-
-B <- ggplot((filter(npdrawdown, grepl("8", daycount))) , aes(
-    x = iron_treatment,
-    y = (total_Ndrawdown/total_Pdrawdown),
-    shape = iron_treatment, 
-    color = temperature_treatment))+
-   stat_summary(fun = mean, geom = "point", show.legend = T, size = 4, stroke = 1.5, alpha = 0.65)+
-   stat_summary(fun.data =  mean_se, geom = "errorbar", size = 1, width = 0.1)+
-   ylab (expression (NO[3]:PO[4]~drawdown~~(M:M))) + 
-  xlab("") +
-   facet_wrap (~bioassay)+
-   scale_color_manual(name="Temperature",
-                     breaks = c("LT","HT"),
-                     labels = c("LT", "HT"),
-                     values = c('black', 'darkorange2','black')) +
-  scale_shape_manual(name = "Iron",
-                      breaks = c("Fe","noFe", "T0"), 
-                      labels = c("Fe", "noFe", "T0"),
-                      values = c(19,1,5)) +
-  scale_x_discrete(limits=c("noFe","Fe"))+
-  theme_bw()+
-  theme(axis.text=element_text(face = "bold", size = 12, color = "black"),
-        axis.title.x=element_text(size = 14,face = "bold", color = "black"), 
-        axis.title.y=element_text(size=16, color = "black"), 
-        strip.background =element_rect(fill = "white"),
-        strip.text.x = element_text(size = 12, face = "bold"),
-        legend.position = "none") +
-   expand_limits(y = 0)
-```
-
-Ribosomes normalized to total protein -  2023-03-30
-```{r}
-#First make sure that all the ribosomal peptides are annotated as such, and that the groups are properly annotated 
-proteindata_unnorm$compartment <- ifelse (proteindata_unnorm$uniq_cluster  ==  "unassigned_cluster", "ribosome", 
-                               ifelse (proteindata_unnorm$uniq_grpnorm_compartment == "ribosomal", "ribosome",
-                               ifelse (grepl("ribosom|Ribosom", proteindata_unnorm$uniq_cluster_annotation) ,  "ribosome",
-                                       proteindata_unnorm$uniq_grpnorm_compartment))) # proteindata_unnorm$uniq_cluster))) #
-
-test <- proteindata_unnorm [c(4, 70, 21, 5,7, 13 )]                           
-
-
-
-compartment <- proteindata_unnorm [c(70, 37, 40:69  )]                           
-
-compartment <- melt(compartment, id.vars=c("compartment", "F")) %>%
-            rename(treatment = variable) %>%
-            rename(unnnorm_abundance = value) 
-            #separate(treatment, into=c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"), sep = "_")
-
-compartment$F <- ifelse (compartment$F ==  "Polar-centric-Mediophyceae", "Centric diatom", 
-                 ifelse (compartment$F ==  "Radial-centric-basal-Coscinodiscophyceae", "Centric diatom", 
-                 ifelse (compartment$F ==  "Raphid-pennate", "Pennate diatom", 
-                 ifelse (compartment$F ==  "Araphid-pennate", "Pennate diatom", 
-                 ifelse (compartment$F ==  "Phaeocystaceae", "Phaeocystis",
-                                          compartment$F)))))
-#notmalize to total protein
-compartment_aggregated_total <- aggregate(compartment$unnnorm_abundance, 
-                                  by=list(Category=compartment$compartment, compartment$treatment), FUN=sum) %>%
-                        rename(unnorm_abundance = x) %>%
-                        rename(compartment = Category) %>%
-                        rename(treatment = Group.2) 
-                       
-compartment_aggregated_total <- compartment_aggregated_total %>% 
-                          group_by(treatment) %>% 
-                          mutate(totalproteinnorm_abundance = unnorm_abundance / sum(unnorm_abundance)) %>% 
-                          ungroup()
-
-compartment_aggregated_total <- compartment_aggregated_total %>% 
-  separate(treatment, into=c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"), sep = "_")
-
-
-
-
-
-ggplot(filter (compartment_aggregated_total, grepl ("^ribosome$", compartment)),
-       aes(x= iron_treatment,
-       y= totalproteinnorm_abundance,
-       color = temperature_treatment, 
-       shape = iron_treatment)) + 
-  facet_wrap(~bioassay)+
-  stat_summary(fun = mean, geom = "point", size = 4, stroke = 1.5, alpha = 0.5)+
-  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, linewidth = 1, width = 0.1)+
-  scale_color_manual(name="Temperature",
-                     breaks = c("LT","HT"),
-                     labels = c("LT", "HT"),
-                     values = c('black', 'darkorange2','black')) +
-  scale_shape_manual(name = "Iron",
-                       breaks = c("Fe","noFe", "T0"), 
-                       labels = c("Fe", "noFe", "T0"),
-                       values = c(19,1,5)) +
-  scale_x_discrete(limits=c("T0","noFe","Fe"), 
-                   labels = c("T0", "T8 (-Fe)", "T8 (+Fe)"))+
-  xlab(expression ("")) +
-  ylab (expression(atop ("Ribosome fraction of", paste ("total protein")))) + 
-  theme_bw()+
-  theme(axis.text=element_text(face = "bold", size = 12, color = "black"),
-        axis.title.x=element_text(size = 14,face = "bold", color = "black"), 
-        axis.title.y=element_text(size=16, color = "black"), 
-        strip.background =element_rect(fill = "white"),
-        strip.text.x = element_text(size = 12, face = "bold"),
-        legend.position = "none") 
-```
-
-Ribosomes normalized to taxonomic groups -  2023-03-30
-```{r}
-#normalize to group 
-compartment_aggregated_group  <- aggregate(compartment$unnnorm_abundance, 
-                                  by=list(Category=compartment$compartment, compartment$treatment, compartment$F), FUN=sum) %>%
-                        rename(unnorm_abundance = x) %>%
-                        rename(compartment = Category) %>%
-                        rename(treatment = Group.2) %>% 
-                        rename(taxon_F = Group.3) 
-
-compartment_aggregated_group  <- compartment_aggregated_group  %>% 
-                          group_by(treatment,taxon_F) %>% 
-                          mutate(groupnorm_abundance = unnorm_abundance / sum(unnorm_abundance)) %>% 
-                          ungroup()
-
-compartment_aggregated_group <- compartment_aggregated_group %>% 
-  separate(treatment, into=c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"), sep = "_")
-
-
-
-grpnorm_compartment <- function (compartments, taxon, yaxislabel) { 
-ggplot(filter (compartment_aggregated_group, grepl (compartments, compartment) & grepl (taxon, taxon_F)),
-       aes(x= iron_treatment,
-       y= groupnorm_abundance,
-       color = temperature_treatment, 
-       shape = iron_treatment)) + 
-  facet_wrap(~bioassay)+
-  stat_summary(fun = mean, geom = "point", size = 4, stroke = 1.5, alpha = 0.5)+
-  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, linewidth = 1, width = 0.1)+
-  scale_color_manual(name="Temperature",
-                     breaks = c("LT","HT"),
-                     labels = c("LT", "HT"),
-                     values = c('black', 'darkorange2','black')) +
-  scale_shape_manual(name = "Iron",
-                       breaks = c("Fe","noFe", "T0"), 
-                       labels = c("Fe", "noFe", "T0"),
-                       values = c(19,1,5)) +
-  scale_x_discrete(limits=c("T0","noFe","Fe"), 
-                   labels = c("T0", "T8 (-Fe)", "T8 (+Fe)"))+
-  xlab(expression ("")) +
-  ylab (substitute(yaxislabel))+ 
-
-  theme_bw()+
-  theme(axis.text=element_text(face = "bold", size = 12, color = "black"),
-        axis.title.x=element_text(size = 14,face = "bold", color = "black"), 
-        axis.title.y=element_text(size=16, color = "black"), 
-        strip.background =element_rect(fill = "white"),
-        strip.text.x = element_text(size = 12, face = "bold"),
-        legend.position = "none") 
-}
-
-D <- grpnorm_compartment ("^ribosome$", "Pennate di", atop ("Pennate diatom", paste ("ribosomal protein fraction"))) 
-E <- grpnorm_compartment ("^ribosome$", "Centric di", atop ("Centric diatom", paste ("ribosomal protein fraction"))) 
-F <- grpnorm_compartment ("^ribosome$", "Phaeocystis", atop ("Phaeocystis", paste ("ribosomal protein fraction"))) 
-
-
-G <- grpnorm_compartment ("^chloro$", "Pennate di", atop ("Pennate diatom", paste ("photosynthetic protein fraction"))) 
-H <- grpnorm_compartment ("^chloro$", "Centric di", atop ("Centric diatom", paste ("photosynthetic protein fraction"))) 
-I <- grpnorm_compartment ("^chloro$", "Phaeocystis", atop ("Phaeocystis", paste ("photosynthetic protein fraction"))) 
-
-
-grpnorm_compartment ("^chloro$", "di", atop ("Phaeocystis", paste ("photosynthetic protein fraction"))) 
-
-
-plot_grid (G,H,I,
-                ncol = 1, 
-      
-           align = "hv")
-
-```
-```
-
-Plot
-```{r}
-fig5_legend <-  ggplot(filter (nonproteindata, grepl ("T0|T8", full_treatment_name) ), 
-       aes(x=iron_treatment, 
-       y=fvfm,
-       color = tempfe_treatment, 
-       shape = tempfe_treatment))+
-  geom_point(size = 4, alpha =0.65, stroke =1.5)+
-  scale_color_manual(breaks = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      labels = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      values = c('black', 'black', 'black','darkorange2', "darkorange2")) +
-  scale_shape_manual(breaks = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      labels = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      values = c(5, 1, 19,1, 19)) +
-  theme_bw()+
-  theme(legend.title = element_blank(),
-        legend.text = element_text(size = 12, margin = margin(unit = 'cm')), 
-        legend.margin = margin(c(0,0,0,0)), 
-        legend.spacing.x = unit(0, "mm"),
-        legend.spacing.y = unit(0, "mm"))
-
-fig5_legend <- get_legend(fig5_legend)
-fig5_legend <- as_ggplot(fig5_legend)
-fig5_legend
-
-x <- plot_grid (A, NULL, D,
-           B, NULL, E,
-           C, NULL, F,
-           ncol = 3, 
-           labels = c("A", "", "D", 
-                      "B", "", "E", 
-                      "C", "", "F"),
-           rel_widths = c(1,0.08,1), 
-           align = "hv")
-
-png("ps117_figure5_highres_20230330.png", width=14, height=11, units="in", res=900) 
-
-plot_grid(x, fig5_legend, 
-          rel_widths = c(1,0.08), 
-          rel_heights = c(1, 0.5))
-dev.off()
-```
-
-
 #Figure 6
 ```{r}
 #Consider not splitting the data into bioassays, the Cd and CA trends become strong. 
@@ -1741,400 +1764,6 @@ plot_grid( metals_Cd,  CA_centric,
 #and heatmap
 ```
 
-#metal contribution to proteome
-Protein per L 
-```{r}
-alldata$fulltreatment <- paste (alldata$temperature_treatment, alldata$iron_treatment, sep = "_")
-
-ggplot(filter (alldata, grepl ("T0|T8", full_treatment_name) & grepl ("BA2|", bioassay)), 
-       aes(#x=iron_treatment, 
-       #x=PCd_nM,
-       #x = protein_ug_per_L,
-       x = PON_ug_L*4.78,
-
-       y = (PCd_nM*68.76),
-          #y = (PCd_nM),
-       #x= PCd_nM/PON_uM,
-       
-       color = tempFe, 
-       shape = tempFe))+
-       #color = temperature_treatment, 
-       #shape = iron_treatment)) + 
-  geom_point(size = 4, alpha =0.65, stroke =1.5)+
-  
-    scale_color_manual(name="",
-                      breaks = c("T0_T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      labels = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      values = c('black', 'black', 'black','darkorange2', "darkorange2")) +
-  
-     scale_shape_manual(name="",
-                      breaks = c("T0_T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      labels = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      values = c(5, 1, 19,1, 19)) +
-  labs (x = "Total protein (ug/L)", y = "Theortical maximum Cd-CA (ug/L)")+
-    theme_bw()+
-  
-     facet_wrap(~bioassay) +
-  
-  theme(axis.title = element_text (size = 14, face = "bold"), 
-        axis.text = element_text(size = 12, color = 'black'), 
-        legend.title = element_text(size = 14, face = "bold"),
-        legend.text = element_text(size = 10, margin = margin(r = 0.5, unit = 'cm')), 
-        strip.background =element_rect(fill = "white"),
-        strip.text.x = element_text(size = 14, face = "bold"))
-     
- ggplot(filter (alldata, grepl ("T0|T8", full_treatment_name) & grepl ("BA2|", bioassay)), 
-       aes(#x=iron_treatment, 
-       #x=PCd_nM,
-       #x = protein_ug_per_L,
-       x = factor(tempFe, level = tempFe_order),
-
-       y = (PCd_nM*68.76)/(PON_ug_L*4.78),
-          #y = (PCd_nM),
-       #x= PCd_nM/PON_uM,
-       
-       color = tempFe, 
-       shape = tempFe))+
-       #color = temperature_treatment, 
-       #shape = iron_treatment)) + 
-  geom_point(size = 4, alpha =0.65, stroke =1.5)+
-  
-    scale_color_manual(name="",
-                      breaks = c("T0_T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      labels = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      values = c('black', 'black', 'black','darkorange2', "darkorange2")) +
-  
-     scale_shape_manual(name="",
-                      breaks = c("T0_T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      labels = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      values = c(5, 1, 19,1, 19)) +
-  labs (x = "", y = "Theortical maximum Cd-CA abundance:protein (ug:ug)")+
-    theme_bw()+
-  
-     facet_wrap(~bioassay) +
-  scale_y_log10()+
-  
-  theme(axis.title = element_text (size = 14, face = "bold"), 
-        axis.text = element_text(size = 12, color = 'black'), 
-        legend.title = element_text(size = 14, face = "bold"),
-        legend.text = element_text(size = 10, margin = margin(r = 0.5, unit = 'cm')), 
-        strip.background =element_rect(fill = "white"),
-        strip.text.x = element_text(size = 14, face = "bold"))
-
-cdca <- filter(norm_proteomicsdata, grepl("clust_6573", cluster))
-cdca2 <- cdca [c(3, 24:53)]
-
-cdca3 <- melt(cdca2, id.vars=c("cluster")) %>%
-            rename(treatment = variable) %>%
-            rename(norm_abundance = value ) %>% 
-            separate(treatment, into =  c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"))  
- 
-cdca3$tempFe <- paste (cdca3$temperature_treatment, cdca3$iron_treatment, sep = "_")
-  
-cdca4 <- aggregate(cdca3$norm_abundance, by=list(cdca3$bioassay, cdca3$tempFe, cdca3$replicate), FUN = sum) %>%
-          rename (bioassay = Group.1, 
-          tempFe = Group.2, 
-          replicate = Group.3, 
-          cdca_norm_abundance = x)
-
-alldata2 <- merge (alldata, cdca4, by = c("bioassay", "tempFe", "replicate"), all=TRUE)
-
-#write.csv(alldata2, "testtest.csv")
-
-ggplot(filter (alldata2, grepl ("T0|T8", full_treatment_name) & grepl ("BA2|", bioassay)), 
-       aes(#x=PCd_nM,
-       #x = protein_ug_per_L,
-       #x = factor(tempFe, level = tempFe_order),
-        x = cdca_norm_abundance, 
-       y = (PCd_nM*68.76)/(PON_ug_L*4.78),
-          #y = (PCd_nM),
-       color = tempFe, 
-       shape = tempFe))+
-       #color = temperature_treatment, 
-       #shape = iron_treatment)) + 
-  geom_point(size = 4, alpha =0.65, stroke =1.5)+
-  
-    scale_color_manual(name="",
-                      breaks = c("T0_T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      labels = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      values = c('black', 'black', 'black','darkorange2', "darkorange2")) +
-  
-     scale_shape_manual(name="",
-                      breaks = c("T0_T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      labels = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      values = c(5, 1, 19,1, 19)) +
-  labs (x = "Cd-CA:total peptide abuncance", y = "theoretical maximum Cd-CA : total protein " )+
-    theme_bw()+
-  
-     facet_wrap(~bioassay) +
- # scale_y_log10()+
-  
-  theme(axis.title = element_text (size = 14, face = "bold"), 
-        axis.text = element_text(size = 12, color = 'black'), 
-        legend.title = element_text(size = 14, face = "bold"),
-        legend.text = element_text(size = 10, margin = margin(r = 0.5, unit = 'cm')), 
-        strip.background =element_rect(fill = "white"),
-        strip.text.x = element_text(size = 14, face = "bold"))
-
-
-
-#I was thinking just to calculate the proportion of the metal that can be accounted for by protein.
-
-#step 1: Calculate moles of pCd from mass of Cd-CA
-#each kg of Cd-CA = 0.0148 moles
-
-
-#1 ug of cdca = 1.454 e-11 moles
-
-#calculate ug/L of cdca: cdca_norm_abundance*PON_ug_L*4.78)
-#calculate moles/L of cdca from ug/L : 1.454e-11 *(cdca_norm_abundance*PON_ug_L*4.78)
-
-#calculate nM pCd from moles/L cd-ca 1e9 *(1.454e-11 *(cdca_norm_abundance*PON_ug_L*4.78))
-
-ggplot(filter (alldata2, grepl ("T0|T8", full_treatment_name) & grepl ("BA2|", bioassay)), 
-       aes(#x=PCd_nM,
-       #x = PCd_nM,
-      # x = factor(tempFe, level = tempFe_order),
-       x = bioassay, 
-       #y = (PCd_nM*68.76)/(PON_ug_L*4.78),
-         y = (1e9 *(1.454e-11 *(cdca_norm_abundance*PON_ug_L*4.78)))/PCd_nM*100))+
-       #color = tempFe, 
-       #shape = tempFe))+
-  geom_point(size = 4, alpha =0.1)+
-   stat_summary(fun = mean, geom = "point", size = 4)+
-  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, size = 1, width = 0.1)+
-  
-  
-    scale_color_manual(name="",
-                      breaks = c("T0_T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      labels = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      values = c('black', 'black', 'black','darkorange2', "darkorange2")) +
-  
-     scale_shape_manual(name="",
-                      breaks = c("T0_T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      labels = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      values = c(5, 1, 19,1, 19)) +
-  labs (x = "", y = "Percent of pCd accounted for by Cd-CA" )+
-    theme_bw()+
-       #facet_wrap(~bioassay) +
-  theme(axis.title = element_text (size = 14, face = "bold"), 
-        axis.text = element_text(size = 12, color = 'black'), 
-        legend.title = element_text(size = 14, face = "bold"),
-        legend.text = element_text(size = 10, margin = margin(r = 0.5, unit = 'cm')), 
-        strip.background =element_rect(fill = "white"),
-        strip.text.x = element_text(size = 14, face = "bold"))
-```
-
-Mn cluster
-```{r}
-#clust_5856
-#clust_1906 - psbO
-#clust_2763 - psbQ
-oec <- filter(norm_proteomicsdata, grepl("clust_1906", cluster))
-oec2 <- oec [c(3, 24:53)]
-
-oec3 <- melt(oec2, id.vars=c("cluster")) %>%
-            rename(treatment = variable) %>%
-            rename(norm_abundance = value ) %>% 
-            separate(treatment, into =  c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"))  
- 
-oec3$tempFe <- paste (oec3$temperature_treatment, oec3$iron_treatment, sep = "_")
-  
-oec4 <- aggregate(oec3$norm_abundance, by=list(oec3$bioassay, oec3$tempFe, oec3$replicate, oec3$cluster), FUN = sum) %>%
-          rename (bioassay = Group.1, 
-          tempFe = Group.2, 
-          replicate = Group.3, 
-          oec_norm_abundance = x)
-
-oec4$normabunancadjusted <- ifelse (oec4$Group.4 ==  "clust_1906", oec4$oec_norm_abundance*3.0303e-11, 
-                                    ifelse(oec4$Group.4 == "clust_2763", oec4$oec_norm_abundance*6.6667e-11, 
-                                           ifelse(oec4$Group.4 == "clust_5856", oec4$oec_norm_abundance*4.347e-11, 
-                                         "else")))
-                                    
-alldata2 <- merge (alldata, oec4, by = c("bioassay", "tempFe", "replicate"), all=TRUE)
-
-
-#I was thinking just to calculate the proportion of the metal that can be accounted for by protein.
-#Calculate moles of pMn from mass of Mn-cluster
-
-#each kg of OEC-cluster = 0.0303moles
-
-#1 ug of oec = 3.0303 e-11 moles
-
-#calculate ug/L of oec: oec_norm_abundance*PON_ug_L*4.78)
-#calculate moles/L of oec from ug/L : 3.0303e-11 *(oec_norm_abundance*PON_ug_L*4.78)
-
-#calculate nM pMn from moles/L cd-ca 1e9 *(3.0303e-11 *(oec_norm_abundance*PON_ug_L*4.78))
-
-ggplot(filter (alldata2, grepl ("T0|T8", full_treatment_name) & grepl ("BA2|", bioassay)), 
-       aes(#x=PCd_nM,
-        x = factor(tempFe, level = tempFe_order),
-       #x = bioassay, 
-       #y = (PCd_nM*68.76)/(PON_ug_L*4.78),
-         y = (4*1e9* as.numeric(normabunancadjusted)*PON_ug_L*4.78 )/PMn_nM*100,
-       # y = (4*1e9 *((as.numeric(normabunancadjusted)*protein_ug_per_L)))/PMn_nM*100,
-       color = tempFe, 
-       shape = tempFe))+
-  #geom_point(size = 4, alpha =0.2)+
-   stat_summary(fun = mean, geom = "point", size = 4)+
-  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, size = 1, width = 0.1)+
-    scale_color_manual(name="",
-                      breaks = c("T0_T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      labels = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      values = c('black', 'black', 'black','darkorange2', "darkorange2")) +
-  
-     scale_shape_manual(name="",
-                      breaks = c("T0_T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      labels = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      values = c(5, 1, 19,1, 19)) +
-  labs (x = "", y = "Percent of pMn accounted for by Mn-cluster" )+
-    theme_bw()+
-  #scale_y_log10()+
-       facet_wrap(~bioassay) +
-  theme(axis.title = element_text (size = 14, face = "bold"), 
-        axis.text = element_text(size = 12, color = 'black'), 
-        legend.title = element_text(size = 14, face = "bold"),
-        legend.text = element_text(size = 10, margin = margin(r = 0.5, unit = 'cm')), 
-        strip.background =element_rect(fill = "white"),
-        strip.text.x = element_text(size = 14, face = "bold"))
-```
-
-Mn cluster
-```{r}
-
-#clust_1906 - psbO
-#clust_2763 - psbQ
-oec <- filter(norm_proteomicsdata, grepl("clust_1906", cluster))
-oec2 <- oec [c(3, 24:53)]
-
-oec3 <- melt(oec2, id.vars=c("cluster")) %>%
-            rename(treatment = variable) %>%
-            rename(norm_abundance = value ) %>% 
-            separate(treatment, into =  c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"))  
- 
-oec3$tempFe <- paste (oec3$temperature_treatment, oec3$iron_treatment, sep = "_")
-  
-
-oec4 <- aggregate(oec3$norm_abundance, by=list(oec3$bioassay, oec3$tempFe, oec3$replicate), FUN = sum) %>%
-          rename (bioassay = Group.1, 
-          tempFe = Group.2, 
-          replicate = Group.3, 
-          oec_norm_abundance = x)
-
-alldata2 <- merge (alldata, oec4, by = c("bioassay", "tempFe", "replicate"), all=TRUE)
-
-#I was thinking just to calculate the proportion of the metal that can be accounted for by protein.
-#Calculate moles of pMn from mass of Mn-cluster
-
-#each kg of OEC-cluster = 0.0303moles
-
-#1 ug of oec = 3.0303 e-11 moles
-
-#calculate ug/L of oec: oec_norm_abundance*PON_ug_L*4.78)
-#calculate moles/L of oec from ug/L : 3.0303e-11 *(oec_norm_abundance*PON_ug_L*4.78)
-
-#calculate nM pMn from moles/L cd-ca 1e9 *(3.0303e-11 *(oec_norm_abundance*PON_ug_L*4.78))
-
-ggplot(filter (alldata2, grepl ("T0|T8", full_treatment_name) & grepl ("BA2|", bioassay)), 
-       aes(#x=PCd_nM,
-        x = factor(tempFe, level = tempFe_order),
-       #x = bioassay, 
-       #y = (PCd_nM*68.76)/(PON_ug_L*4.78),
-         y = (4 * 1e9 * 3.0303e-11 * oec_norm_abundance * PON_ug_L * 4.78)/PMn_nM*100,
-       color = tempFe, 
-       shape = tempFe))+
-  #geom_point(size = 4, alpha =0.2)+
-   stat_summary(fun = mean, geom = "point", size = 4)+
-  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, size = 1, width = 0.1)+
-    scale_color_manual(name="",
-                      breaks = c("T0_T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      labels = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      values = c('black', 'black', 'black','darkorange2', "darkorange2")) +
-  
-     scale_shape_manual(name="",
-                      breaks = c("T0_T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      labels = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      values = c(5, 1, 19,1, 19)) +
-  labs (x = "", y = "Percent of pMn accounted for by Mn-cluster" )+
-    theme_bw()+
-       facet_wrap(~bioassay) +
-  theme(axis.title = element_text (size = 14, face = "bold"), 
-        axis.text = element_text(size = 12, color = 'black'), 
-        legend.title = element_text(size = 14, face = "bold"),
-        legend.text = element_text(size = 10, margin = margin(r = 0.5, unit = 'cm')), 
-        strip.background =element_rect(fill = "white"),
-        strip.text.x = element_text(size = 14, face = "bold"))
-```
-
-SOD cluster
-```{r}
-sod <- filter(norm_proteomicsdata, grepl("^clust_2501$", cluster))
-sod2 <- sod [c(3, 24:53)]
-
-sod3 <- melt(sod2, id.vars=c("cluster")) %>%
-            rename(treatment = variable) %>%
-            rename(norm_abundance = value ) %>% 
-            separate(treatment, into =  c("bioassay", "timepoint", "temperature_treatment", "iron_treatment", "replicate"))  
- 
-sod3$tempFe <- paste (sod3$temperature_treatment, sod3$iron_treatment, sep = "_")
-
-sod4 <- aggregate(sod3$norm_abundance, by=list(sod3$bioassay, sod3$tempFe, sod3$replicate), FUN = sum) %>%
-          rename (bioassay = Group.1, 
-          tempFe = Group.2, 
-          replicate = Group.3, 
-          sod_norm_abundance = x)
-
-alldata2 <- merge (alldata, sod4, by = c("bioassay", "tempFe", "replicate"), all=TRUE)
-
-
-#I was thinking just to calculate the proportion of the metal that can be accounted for by protein.
-#Calculate moles of pMn from mass of Mn-cluster
-
-#each kg of sod-cluster = 0.0303moles
-
-#1 ug of sod = 3.0303 e-11 moles
-
-#calculate ug/L of sod: sod_norm_abundance*PON_ug_L*4.78)
-#calculate moles/L of sod from ug/L : 3.0303e-11 *(sod_norm_abundance*PON_ug_L*4.78)
-
-#calculate nM pMn from moles/L cd-ca 1e9 *(3.0303e-11 *(sod_norm_abundance*PON_ug_L*4.78))
-
-ggplot(filter (alldata2, grepl ("T0|T8", full_treatment_name) & grepl ("BA2|", bioassay)), 
-       aes(#x=PCd_nM,
-       #x = PCd_nM,
-       x = factor(tempFe, level = tempFe_order),
-       #x = bioassay, 
-       #y = (PCd_nM*68.76)/(PON_ug_L*4.78),
-         y = (1e9 *(4e-11 *(sod_norm_abundance*PON_ug_L*4.78)))/PMn_nM*100,
-       color = tempFe, 
-       shape = tempFe))+
-  geom_point(size = 4, alpha =0.2)+
-   stat_summary(fun = mean, geom = "point", size = 4)+
-  stat_summary(fun.data =  mean_se, geom = "errorbar", show.legend = F, size = 1, width = 0.1)+
-    scale_color_manual(name="",
-                      breaks = c("T0_T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      labels = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      values = c('black', 'black', 'black','darkorange2', "darkorange2")) +
-  
-     scale_shape_manual(name="",
-                      breaks = c("T0_T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      labels = c("T0", "LT_noFe", "LT_Fe", "HT_noFe", "HT_Fe"),
-                      values = c(5, 1, 19,1, 19)) +
-  labs (x = "", y = "Percent of pMn accounted for by Fe-Mn SOD" )+
-    theme_bw()+
-       facet_wrap(~bioassay) +
-  theme(axis.title = element_text (size = 14, face = "bold"), 
-        axis.text = element_text(size = 12, color = 'black'), 
-        legend.title = element_text(size = 14, face = "bold"),
-        legend.text = element_text(size = 10, margin = margin(r = 0.5, unit = 'cm')), 
-        strip.background =element_rect(fill = "white"),
-        strip.text.x = element_text(size = 14, face = "bold"))
-```
-
-
-
-
-
 
 
 
@@ -2142,7 +1771,6 @@ ggplot(filter (alldata2, grepl ("T0|T8", full_treatment_name) & grepl ("BA2|", b
 fasciclin (supplement ? )
 ```{r}
 fas <- read.table ("fasciclin_environmental_parameters.csv")
-
 ```
 
 Z-score for things ? 
@@ -2268,11 +1896,6 @@ row3 <- plot_grid(NULL, metals_Zn, NULL, Znproteins_diatoms, NULL, Znproteins_ph
 plot_grid(row1, row2, row3, 
           nrow = 3)
 ```
-
-
-
-
-
 
 
 
