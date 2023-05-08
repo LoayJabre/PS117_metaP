@@ -1,0 +1,342 @@
+Loay Jabre; Last updated: 2023-03-23
+- These scripts explore look at different normalizations factors for ps117 proteomics data. 
+```{r}
+#plotting 
+library(ggplot2)
+library(ggthemes)
+library(GGally)
+library(viridis)
+library(gridExtra)
+library(cowplot)
+
+#other
+library(data.table)
+library(dplyr)
+library(magrittr)
+library(reshape2)
+library(stringr)
+library(scales)
+library(tidyr)
+library(tidyverse)
+```
+
+# Step 4 - last edited 2023-03-23
+Do some plots after steps 1-3 have been done (to output a useful file)
+```{r}
+setwd("D:/School/PhD/PS117/data/")
+#windows (h = 11.81, w = 8.85)
+
+normfactors <- read.csv('ps117_all_norm_factors_20230323.csv') [c(5:10)]
+normfactors_long <- melt (normfactors, id.vars = c("sample", "sample_type", "injection") )
+
+#png("ps117_figureS_normfactors_20230326.png", width = 10.2, height= 6, units ="in", res=900) 
+ggplot(data = filter(normfactors_long, !grepl("BSA|H|Blk", sample)), 
+       aes(x = injection, y = value, color = variable)) +   #x= reorder (sample, injection)
+  geom_point(size = 5, alpha = 0.4) + 
+  labs(x = "Injection #", y = "Abundance", color = "Variable") +
+  scale_color_colorblind(breaks = c("TIC","all_possible_peptides", "matched_peptides"),
+                         labels = c("TIC", "Peptide-like features", "Matched peptides"))+
+  scale_x_continuous(breaks = seq(0, max(normfactors_long$injection), by = 4)) +
+  theme_bw() +
+  theme(axis.text = element_text(face = "bold", size = 12, color = "black"),
+        axis.title = element_text(size = 14, face = "bold", color = "black"),
+        legend.position = "top",
+        legend.justification = "left",
+        legend.margin=margin(0,0,0,0),
+        legend.box.margin=margin(b=-8),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10, face = "bold"))
+
+#dev.off()
+a <- ggplot(filter(normfactors, !grepl("BSA|H|Blk", sample)), 
+       aes(x = TIC, y = matched_peptides)) +
+  geom_point(size = 4, alpha = 0.4) +
+  geom_abline(slope = 1, intercept = 0, color = "black", linetype = 5, size = 1) +
+  labs(x = "TIC", y = "Matched peptide abundance") +
+  scale_x_continuous(limits = c(0, 6e12)) +
+  scale_y_continuous(limits = c(0, 3.6e12)) +
+  theme_bw() +
+  theme(axis.text = element_text(face = "bold", size = 12, color = "black"),
+        axis.title = element_text(size = 14, face = "bold", color = "black"))
+
+b <- ggplot(filter(normfactors, !grepl("BSA|H|Blk", sample)),
+       aes(x = round(matched_peptides / TIC, digits = 4))) +
+  geom_histogram(color = "black", fill = "grey", aes(y = ..count..), bins = 20) +
+  geom_density(alpha = 0.4, fill = "black", size = 0.5) +
+  geom_vline(aes(xintercept = median(round(matched_peptides / TIC, digits = 4))), 
+             color = "black", linetype = "dashed", size = 0.5) +
+  labs(x = "Matched peptide abundance:TIC", y = "Frequency") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.05)) +
+  scale_y_continuous(breaks = seq(0, 20, by = 4)) +
+  theme_bw() +
+  theme(axis.text = element_text(size = 8, face = "bold", color = "black"),
+        axis.title = element_text(size = 10, face = "bold", color = "black"))
+
+A <- plot_grid(a, b, 
+          ncol = 2,
+          rel_widths = c(1,0.6),
+          align='h')
+
+
+c <- ggplot(filter(normfactors, !grepl("BSA|H|Blk", sample)), 
+       aes(x = TIC, y = all_possible_peptides)) +
+  geom_point(size = 4, alpha = 0.4) +
+  geom_abline(slope = 1, intercept = 0, color = "black", linetype = 5, size = 1) +
+  labs(x = "TIC", y = "Peptide-like feature abundance") +
+  scale_x_continuous(limits = c(0, 6e12)) +
+  scale_y_continuous(limits = c(0, 3.6e12)) +
+  theme_bw() +
+  theme(axis.text = element_text(face = "bold", size = 12, color = "black"),
+        axis.title = element_text(size = 14, face = "bold", color = "black"))
+
+ggplot(filter(normfactors, !grepl("BSA|H|Blk", sample)),
+       aes(x = round(all_possible_peptides / TIC, digits = 4))) +
+  geom_histogram(color = "black", fill = "grey", aes(y = ..count..), bins = 20) +
+  geom_density(alpha = 0.4, fill = "black", size = 0.5) +
+  geom_vline(aes(xintercept = median(round(all_possible_peptides / TIC, digits = 4))), 
+             color = "black", linetype = "dashed", size = 0.5) +
+  labs(x = "Peptide-like feature abundance:TIC", y = "Frequency") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.05)) +
+  scale_y_continuous(breaks = seq(0, 10, by = 4)) +
+  theme_bw() +
+  theme(axis.text = element_text(size = 8, face = "bold", color = "black"),
+        axis.title = element_text(size = 10, face = "bold", color = "black"))
+
+
+B <- plot_grid(c, d, 
+          ncol = 2,
+          rel_widths = c(1,0.6),
+          align='h')
+
+e <- ggplot(filter(normfactors, !grepl("BSA|H|Blk", sample)), 
+       aes(x = all_possible_peptides, y = matched_peptides )) +
+  geom_point(size = 4, alpha = 0.4) +
+  geom_abline(slope = 1, intercept = 0, color = "black", linetype = 5, size = 1) +
+  labs(x = "Peptide-like feature abundance", y = "Matched peptide abundance") +
+  scale_x_continuous(limits = c(0, 6e12)) +
+  scale_y_continuous(limits = c(0, 3.6e12)) +
+  theme_bw() +
+  theme(axis.text = element_text(face = "bold", size = 12, color = "black"),
+        axis.title = element_text(size = 14, face = "bold", color = "black"))
+
+f <- ggplot(filter(normfactors, !grepl("BSA|H|Blk", sample)),
+       aes(x = round(matched_peptides / all_possible_peptides, digits = 4))) +
+  geom_histogram(color = "black", fill = "grey", aes(y = ..count..), bins = 20) +
+  geom_density(alpha = 0.4, fill = "black", size = 0.5) +
+  geom_vline(aes(xintercept = median(round(matched_peptides / all_possible_peptides, digits = 4))), 
+             color = "black", linetype = "dashed", size = 0.5) +
+  labs(x = "Matched peptide abundnace:Peptide-like feature abundance", y = "Frequency") +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.05)) +
+  scale_y_continuous(breaks = seq(0, 20, by = 4)) +
+  theme_bw() +
+  theme(axis.text = element_text(size = 8, face = "bold", color = "black"),
+        axis.title = element_text(size = 10, face = "bold", color = "black"))
+
+C <- plot_grid(e, f, 
+          ncol = 2,
+          rel_widths = c(1,0.6),
+          align='h')
+
+#png("ps117_figureS_normfactors_multicor_highres_20230327.png", width = 11.8, height= 12.2, units ="in", res=900) 
+plot_grid(B, A, C, 
+          ncol = 1, 
+          labels = c("A", "B", "C"))
+#dev.off()
+
+# ggdraw() +
+ # draw_plot(e) +
+  #draw_plot(f, x = 0.63, y = 0.07, width = .35, height = .3)
+ # draw_plot(f, x = 0.1, y = 0.67, width = .3, height = .4)
+
+
+
+
+# ggpairs(normfactors, columns = 4:6) + 
+#   theme_bw() + 
+#   theme(axis.text=element_text(size = 12, color = "black"),
+#         strip.background =element_rect(fill = "white"),
+#         strip.text = element_text(size = 12, face = "bold"))
+```
+
+
+#Step 1 - last edited 2023-03-23
+Get sums of 'possible peptide features' from Kronik
+```{r}
+# reduce the kronik output files, rename the summed intensity columns to reflect file name, and combine intensities of all samples into one table
+
+setwd("D:/School/PhD/PS117/hardklorkronik/")
+
+filelist <- list.files(pattern = ".kro") #create a list of all files ending with .kro
+
+lapply(filelist, function(x) {
+      read.csv(x, sep = "\t", header=T) %>%  #reads in all the .csv files in the 'filelis' 
+      select(5,8,11) %>% #read only columns of interest
+   
+      write.csv(paste0("cleaned_kronik_20230323_", x), row.names = FALSE) #re-write a new 'cleaned up' .csv file. This keeps original .csv 
+        })
+
+filelist_cleaned <- list.files(pattern = "cleaned*")
+
+all_files <- lapply(setNames(nm=filelist_cleaned), function(fn) {
+  dat <- read.csv(fn, sep = ",")
+  ind <- colnames(dat) == "Summed.Intensity"
+  if(any(ind)) {
+  colnames(dat)[ind] <- paste0(tools::file_path_sans_ext(basename(fn)), "")}
+  dat
+  })
+
+#add the sample name to the summed intensity column
+Map (write.csv, all_files, names(all_files), row.names=FALSE) 
+
+####
+sums_df <- data.frame()
+
+# loop through all the CSV files in the directory
+for (filename in list.files(pattern="cleaned")) {
+  # read the CSV file
+  data <- read.csv(filename, header=TRUE)
+  
+  # calculate the sum of the second column
+  sum_col <- sum(data[, 2])
+  
+  # add the sum to the sums data frame
+  sums_df <- rbind(sums_df, data.frame(File = filename, Sum = sum_col))
+}
+
+# print the sums data frame
+write.csv (sums_df, "ps117_kronik_abundance_20230323.csv", row.names = F)
+```
+
+
+#Step 2 - last edited 2023-03-23
+Get sums of matched peptide abundances after DB searching 
+```{r}
+setwd("D:/School/PhD/PS117/data/")
+
+allproteins <- read.csv ("all_ps117_taxon-function_peptides_non-normalized_individual-injections_20230307.csv")[c(40:99)]
+sums <- colSums(allproteins)
+peptides <- data.frame(file_name = names(sums), db_peptides = sums)
+rownames(peptides) <- NULL
+peptides <- peptides %>% separate (file_name, into = c("bioassay", "temp", "iron" ,"time", "rep", "injection"))
+
+sample_namenumber_map <- c ("2" = "211216_1037_097_BSA_V46_02",
+                            "05" = "211216_1037_097_BSA_V46_05",
+                            "07" = "211216_1037_097_BSA_V46_07",
+                            "102" = "211216_1037_097_BSA_V46_102",
+                            "36" = "211216_1037_097_BSA_V46_36",
+                            "69" = "211216_1037_097_BSA_V46_69",
+                            "48" = "211216_1037_097_LJ_01_48",
+                            "49" = "211216_1037_097_LJ_01_49",
+                            "51" = "211216_1037_097_LJ_02_51",
+                            "52" = "211216_1037_097_LJ_02_52",
+                            "54" = "211216_1037_097_LJ_03_54",
+                            "55" = "211216_1037_097_LJ_03_55",
+                            "57" = "211216_1037_097_LJ_04_57",
+                            "58" = "211216_1037_097_LJ_04_58",
+                            "27" = "211216_1037_097_LJ_05_27",
+                            "28" = "211216_1037_097_LJ_05_28",
+                            "30" = "211216_1037_097_LJ_06_30",
+                            "31" = "211216_1037_097_LJ_06_31",
+                            "33" = "211216_1037_097_LJ_07_33",
+                            "34" = "211216_1037_097_LJ_07_34",
+                            "38" = "211216_1037_097_LJ_08_38",
+                            "39" = "211216_1037_097_LJ_08_39",
+                            "41" = "211216_1037_097_LJ_09_41",
+                            "42" = "211216_1037_097_LJ_09_42",
+                            "114" = "211216_1037_097_LJ_10_114",
+                            "115" = "211216_1037_097_LJ_10_115",
+                            "44" = "211216_1037_097_LJ_10_44",
+                            "45" = "211216_1037_097_LJ_10_45",
+                            "117" = "211216_1037_097_LJ_11_117",
+                            "118" = "211216_1037_097_LJ_11_118",
+                            "15" = "211216_1037_097_LJ_11_15",
+                            "16" = "211216_1037_097_LJ_11_16",
+                            "18" = "211216_1037_097_LJ_12_18",
+                            "19" = "211216_1037_097_LJ_12_19",
+                            "120" = "211216_1037_097_LJ_13_120",
+                            "121" = "211216_1037_097_LJ_13_121",
+                            "21" = "211216_1037_097_LJ_13_21",
+                            "22" = "211216_1037_097_LJ_13_22",
+                            "123" = "211216_1037_097_LJ_14_123",
+                            "124" = "211216_1037_097_LJ_14_124",
+                            "24" = "211216_1037_097_LJ_14_24",
+                            "25" = "211216_1037_097_LJ_14_25",
+                            "60" = "211216_1037_097_LJ_15_60",
+                            "61" = "211216_1037_097_LJ_15_61",
+                            "63" = "211216_1037_097_LJ_16_63",
+                            "64" = "211216_1037_097_LJ_16_64",
+                            "66" = "211216_1037_097_LJ_17_66",
+                            "67" = "211216_1037_097_LJ_17_67",
+                            "71" = "211216_1037_097_LJ_18_71",
+                            "72" = "211216_1037_097_LJ_18_72",
+                            "74" = "211216_1037_097_LJ_19_74",
+                            "75" = "211216_1037_097_LJ_19_75",
+                            "77" = "211216_1037_097_LJ_20_77",
+                            "78" = "211216_1037_097_LJ_20_78",
+                            "81" = "211216_1037_097_LJ_21_81",
+                            "82" = "211216_1037_097_LJ_21_82",
+                            "84" = "211216_1037_097_LJ_22_84",
+                            "85" = "211216_1037_097_LJ_22_85",
+                            "87" = "211216_1037_097_LJ_23_87",
+                            "88" = "211216_1037_097_LJ_23_88",
+                            "90" = "211216_1037_097_LJ_24_90",
+                            "91" = "211216_1037_097_LJ_24_91",
+                            "93" = "211216_1037_097_LJ_25_93",
+                            "94" = "211216_1037_097_LJ_25_94",
+                            "96" = "211216_1037_097_LJ_26_96",
+                            "97" = "211216_1037_097_LJ_26_97",
+                            "100" = "211216_1037_097_LJ_27_100",
+                            "99" = "211216_1037_097_LJ_27_99",
+                            "104" = "211216_1037_097_LJ_28_104",
+                            "105" = "211216_1037_097_LJ_28_105",
+                            "107" = "211216_1037_097_LJ_29_107",
+                            "108" = "211216_1037_097_LJ_29_108",
+                            "110" = "211216_1037_097_LJ_30_110",
+                            "111" = "211216_1037_097_LJ_30_111",
+                            "01" = "211216_Blk_01",
+                            "10" = "211216_Blk_10",
+                            "113" = "211216_Blk_113",
+                            "125" = "211216_Blk_125",
+                            "20" = "211216_Blk_20",
+                            "40" = "211216_Blk_40",
+                            "76" = "211216_Blk_76",
+                            "98" = "211216_Blk_98" )
+
+peptides$file_name <- sample_namenumber_map [peptides$injection]
+peptides <- peptides [c(8,7)]
+write.csv(peptides, "ps117_peptide_abundance_20230323.csv", row.names = F)
+```
+
+
+#Step 3 - last edited 2023-03-23
+Process and combine all file TIC and Kronik file
+```{r}
+setwd("D:/School/PhD/PS117/data/")
+
+tic <- read.csv("ps117_TIC_abundance.csv") [c(2,3)]
+tic$file_name <-  gsub(pattern = "\\.\\/|\\.mzML", replacement = "", x = tic$file_name)
+
+kro <- read.csv ("ps117_kronik_abundance_20230323.csv")
+kro$file_name <- gsub(pattern = "\\cleaned_kronik_20230323_|\\_kronik.kro", replacement = "", x = kro$File)
+
+colnames(kro) [2] <- "all_peptide_features"
+kro <- kro [c(3,2)]
+
+peptides <-  read.csv("ps117_peptide_abundance_20230323.csv")
+
+allfiles <- list (kro, peptides, tic)
+
+all_abundances <- allfiles %>% reduce (full_join, by = "file_name")
+
+all_abundances <- all_abundances %>% separate(file_name, into = c("a", "b", "c", "d", "sample", "injection"))
+
+
+write.csv(all_abundances, "ps117_all_norm_factors_20230323.csv", row.names = F) #I did some manual editting of this file to fix some names 
+```
+
+
+
+
+
+
+
